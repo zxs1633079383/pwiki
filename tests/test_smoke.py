@@ -26,7 +26,7 @@ def test_version() -> None:
 def test_help_lists_all_subcommands() -> None:
     r = _run_pwiki("--help")
     assert r.returncode == 0
-    for sub in ("sync", "aliases", "canvas", "brief", "evolution", "query"):
+    for sub in ("sync", "aliases", "canvas", "brief", "evolution", "query", "serve"):
         assert sub in r.stdout, f"{sub} missing from --help output"
 
 

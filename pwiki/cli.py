@@ -14,6 +14,7 @@ SUBCOMMANDS = {
     "brief": ("pwiki.brief", "build today's morning-brief skeleton"),
     "evolution": ("pwiki.evolution", "roll up the past week's self-evolution entries"),
     "query": ("pwiki.query", "search Vault notes by query string"),
+    "serve": ("pwiki.serve", "local web UI for the Vault (FastAPI; requires [serve] extra)"),
 }
 
 

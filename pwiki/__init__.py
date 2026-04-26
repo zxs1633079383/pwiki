@@ -26,4 +26,4 @@ Karpathy's framing:
 """
 
 __version__ = "0.1.0"
-__all__ = ["sync", "aliases", "canvas", "brief", "evolution", "query"]
+__all__ = ["sync", "aliases", "canvas", "brief", "evolution", "query", "serve"]

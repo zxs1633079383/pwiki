@@ -66,6 +66,19 @@ pwiki query --rag "怎么判断改一个接口会炸到下游哪些服务"   # m
 > ships wheels for Python 3.10–3.13 only. If you're on 3.14, run pwiki in a
 > 3.13 venv: `python3.13 -m venv ~/.pwiki-venv && ~/.pwiki-venv/bin/pip install 'pwiki[rag]'`.
 
+```bash
+# 8. Browse the Vault in a local web UI (with D3 Canvas viewer)
+pip install 'pwiki[serve]'
+pwiki serve --port 8080 --open
+# → http://127.0.0.1:8080/
+#   home  /         repos list + recent dailies + opportunities
+#   /repo/<name>/   notes by category
+#   /note/<path>    rendered markdown (wikilinks resolve through aliases)
+#   /daily/<date>   daily brief
+#   /canvas/        D3 force-directed graph of every cross-repo edge
+#   ?q=...&rag=1    inline search (header bar, RAG checkbox)
+```
+
 Every command is idempotent. Re-running on the same input updates frontmatter timestamps and refreshes the index, never destroys content.
 
 ## What you get
@@ -122,10 +135,18 @@ Architecture details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Roadmap
 
-- **0.1** (today): Five-command CLI, JSON Canvas, Ebbinghaus, weekly evolution.
-- **0.2**: alias-extraction expanded to non-Chinese-named files; `pwiki query "<question>"` stub → real RAG.
-- **0.3**: `pwiki serve` — local web UI for the Canvas + daily brief.
-- **0.4** (hosted): one-click LiveSync-as-a-service so multi-device sync stops being a CouchDB project.
+- ✅ **0.1**: Five-command CLI, JSON Canvas, Ebbinghaus, weekly evolution.
+- ✅ **0.2**: alias-extraction Pass 4 covers English-named files (`--dict` for custom mappings); `pwiki query "<text>"` (grep) + `pwiki query --rag` (local fastembed semantic search, multilingual MiniLM, ~120MB ONNX).
+- ✅ **0.3**: `pwiki serve` — local web UI with D3 Canvas viewer, wikilink-aware markdown rendering, inline search (grep + RAG toggle).
+- 🟡 **0.4** (hosted, not started): one-click LiveSync-as-a-service so multi-device sync stops being a CouchDB project. Spec: [`docs/0.4-hosted-spec.md`](docs/0.4-hosted-spec.md). Implementation gated on ⭐ ≥ 300 (premature SaaS without traction is a known anti-pattern).
+
+## Pricing (Freemium)
+
+| Tier | Price | What you get |
+|---|---|---|
+| **OSS (CLI + serve)** | free forever | 0.1 → 0.3 全部 — 5 命令 CLI、Canvas、Ebbinghaus、演进、本地 RAG（自带 OpenAI key）、`pwiki serve` 本地 web UI |
+| **Hosted Pro** | $9/mo | 0.4 hosted LiveSync (no CouchDB to operate) + hosted RAG (cached embeddings) + `pwiki.dev/yourname` public URL |
+| **Team Pro** | $29/seat/mo | shared team vault + permissions + aggregated team brief + SSO |
 
 ## Contributing
 
