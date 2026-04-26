@@ -51,7 +51,20 @@ pwiki brief
 
 # 5. (Sundays) Roll up the week's self-evolution entries
 pwiki evolution
+
+# 6. Search the Vault — grep mode (zero deps)
+pwiki query "blast radius"
+
+# 7. Search semantically — RAG mode (multilingual, fully local)
+pip install 'pwiki[rag]'         # adds fastembed (~120MB ONNX model on first use)
+pwiki query --rag --rebuild "warmup"      # build index once
+pwiki query --rag "how do I detect cross-repo impact"
+pwiki query --rag "怎么判断改一个接口会炸到下游哪些服务"   # mixed-language works
 ```
+
+> **Python 3.14 note:** the `[rag]` extra requires `onnxruntime`, which currently
+> ships wheels for Python 3.10–3.13 only. If you're on 3.14, run pwiki in a
+> 3.13 venv: `python3.13 -m venv ~/.pwiki-venv && ~/.pwiki-venv/bin/pip install 'pwiki[rag]'`.
 
 Every command is idempotent. Re-running on the same input updates frontmatter timestamps and refreshes the index, never destroys content.
 

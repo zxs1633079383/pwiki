@@ -36,6 +36,9 @@ out.txt
 examples/sample-vault/.obsidian/workspace*
 examples/sample-vault/.obsidian/cache
 
+# RAG index (per-vault, not committed)
+.pwiki/
+
 # Secrets (never commit)
 .env
 .env.*

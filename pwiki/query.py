@@ -167,20 +167,53 @@ def render(hits, vault: pathlib.Path, query: str) -> str:
     return "\n".join(lines)
 
 
+def render_rag(hits, query: str) -> str:
+    if not hits:
+        return f"==> 0 RAG hits for {query!r}\n"
+    lines = [f"==> {len(hits)} RAG hit(s) for {query!r} (cosine similarity)\n"]
+    for i, (score, meta) in enumerate(hits, 1):
+        repo = meta.get("source_repo") or "?"
+        lines.append(f"  [{i}] sim={score:.3f}  {repo}")
+        lines.append(f"      {meta.get('file', '?')}")
+        if meta.get("heading"):
+            lines.append(f"        # {meta['heading']}")
+        snippet = (meta.get("text", "") or "").splitlines()
+        for s in snippet[:3]:
+            s = s.strip()
+            if s:
+                lines.append(f"        > {s[:200]}")
+        lines.append("")
+    return "\n".join(lines)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Search the Vault for notes matching a query (grep-based)."
+        description="Search the Vault for notes matching a query."
     )
-    ap.add_argument("query", help="search string (case-insensitive)")
+    ap.add_argument("query", help="search string (case-insensitive for grep mode)")
     ap.add_argument("--vault", default=str(DEFAULT_VAULT))
     ap.add_argument("--repo", default=None, help="restrict to a single repo")
-    ap.add_argument("--tag", default=None, help="restrict to notes whose tag contains this substring")
+    ap.add_argument("--tag", default=None,
+                    help="restrict to notes whose tag contains this substring")
     ap.add_argument("--top", type=int, default=10, help="max results to show")
+    ap.add_argument("--rag", action="store_true",
+                    help="semantic search via local embeddings "
+                         "(requires `pip install 'pwiki[rag]'`)")
+    ap.add_argument("--rebuild", action="store_true",
+                    help="(re)build the RAG index before searching")
     args = ap.parse_args()
 
     vault = pathlib.Path(args.vault).expanduser().resolve()
     if not vault.is_dir():
         sys.exit(f"vault not found: {vault}")
+
+    if args.rag or args.rebuild:
+        from pwiki import index_embed
+        if args.rebuild:
+            index_embed.build_index(vault)
+        rag_hits = index_embed.search(vault, args.query, top=args.top)
+        sys.stdout.write(render_rag(rag_hits, args.query))
+        return 0 if rag_hits else 1
 
     hits = search(vault, args.query,
                   repo_filter=args.repo, tag_filter=args.tag, top=args.top)
