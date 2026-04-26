@@ -1,25 +1,22 @@
 #!/usr/bin/env python3
 """
-obsidian-bridge follow-up: parse a synced repo's 索引.md / index.md to extract
-[[english-slug]] → 中文名 mappings, then add `aliases:` frontmatter to the
-matching note files so wikilinks resolve in Obsidian's graph.
+pwiki aliases: parse a synced repo's index file to extract `[[slug]] → name`
+pairs, then add YAML `aliases:` frontmatter to the matching note files so
+wikilinks resolve in Obsidian's graph.
 
-Strategy:
-  1. Read Vault/repos/<repo>/索引.md (or index.md).
-  2. For each line `- [[slug]] — **中文名**: ...` (also handles non-bold form),
-     capture (slug, 中文名).
-  3. For each (slug, 中文名), find the best file under that repo by:
-     a. exact filename stem == 中文名
-     b. filename stem contains 中文名 (or 中文名 contains filename stem,
-        for cases like "多仓库匹配机制" vs file "多仓库匹配.md")
-     c. H1 heading (first `^# ` line after frontmatter) contains 中文名
-  4. Merge slug into target file's `aliases:` frontmatter list (idempotent).
-  5. Print mapping stats.
+Match passes (in order, first hit wins):
+  Pass 1: filename stem exact / contains <name>
+  Pass 2: H1 heading contains <name>
+  Pass 3: translate slug tokens via EN→XX dict, score against filename stems
+  Pass 4: slug raw tokens (no translation) match filename stem (case-insensitive)
+          — handles non-Chinese / English-named wikis
 
 Usage:
-    add_aliases.py <repo_name> [--vault PATH] [--dry-run]
+    pwiki aliases <repo> [--vault PATH] [--dry-run]
+                  [--dict path/to/extra.json]   # extend EN→XX dict
 """
 import argparse
+import json
 import pathlib
 import re
 import sys
@@ -139,18 +136,23 @@ def first_h1(body: str) -> str:
     return m.group(1).strip() if m else ""
 
 
-def slug_tokens_zh(slug: str) -> list:
-    """Translate slug tokens through EN_ZH; tokens not in dict are kept as-is."""
-    raw = [t for t in re.split(r"[\-_]", slug.lower()) if t and t not in {"and", "the", "of", "to"}]
-    out = []
-    for t in raw:
-        out.append(EN_ZH.get(t, t))
-    return out
+STOPWORDS = {"and", "the", "of", "to", "a", "an", "is", "in", "on", "for"}
 
 
-def best_match(slug: str, name: str, files: list, body_h1: dict):
+def slug_raw_tokens(slug: str) -> list:
+    """Lowercase tokens split on -/_, stopwords removed."""
+    return [t for t in re.split(r"[\-_]", slug.lower())
+            if t and t not in STOPWORDS]
+
+
+def slug_tokens_translated(slug: str, en_xx: dict) -> list:
+    """Translate slug tokens through en_xx; untranslated tokens kept as-is."""
+    return [en_xx.get(t, t) for t in slug_raw_tokens(slug)]
+
+
+def best_match(slug: str, name: str, files: list, body_h1: dict, en_xx: dict):
     cands = normalize_candidates(name)
-    # Pass 1: filename stem exact / contains
+    # Pass 1: filename stem exact / contains <name>
     for f in files:
         stem = f.stem
         for c in cands:
@@ -162,18 +164,59 @@ def best_match(slug: str, name: str, files: list, body_h1: dict):
         for c in cands:
             if c and c in h1:
                 return f
-    # Pass 3: translate slug tokens via EN_ZH and score against filename stems.
-    zh_tokens = slug_tokens_zh(slug)
-    if not zh_tokens:
+    # Pass 3: translate slug tokens via EN→XX dict, score against filename stems
+    translated = slug_tokens_translated(slug, en_xx)
+    if translated:
+        best, best_score = None, 0
+        for f in files:
+            stem = f.stem
+            score = sum(1 for t in translated if t and (t in stem or stem in t))
+            if score > best_score and (score >= 2 or (score == 1 and len(translated) == 1)):
+                best, best_score = f, score
+        if best:
+            return best
+    # Pass 4: raw slug tokens (no translation) → filename stem case-insensitive
+    raw = slug_raw_tokens(slug)
+    if not raw:
         return None
     best, best_score = None, 0
+    threshold = 1 if len(raw) <= 2 else 2
     for f in files:
-        stem = f.stem
-        score = sum(1 for t in zh_tokens if t and (t in stem or stem in t))
-        # need at least 2 matching tokens, OR a single token covering most of the stem
-        if score > best_score and (score >= 2 or (score == 1 and len(zh_tokens) == 1)):
+        stem_lower = f.stem.lower()
+        score = sum(1 for t in raw if t in stem_lower)
+        if score > best_score and score >= threshold:
             best, best_score = f, score
     return best
+
+
+def candidates_for_unmatched(slug: str, files: list, top_k: int = 3):
+    """Rank `files` by Pass-4 (raw token) score for diagnostics on unmatched."""
+    raw = slug_raw_tokens(slug)
+    if not raw:
+        return []
+    scored = []
+    for f in files:
+        stem_lower = f.stem.lower()
+        score = sum(1 for t in raw if t in stem_lower)
+        if score > 0:
+            scored.append((score, f))
+    scored.sort(key=lambda x: (-x[0], str(x[1])))
+    return [f for _, f in scored[:top_k]]
+
+
+def load_dict(path: pathlib.Path) -> dict:
+    """Load JSON `{"en": "xx"}` and merge with built-in EN_ZH (user wins)."""
+    if not path.is_file():
+        sys.exit(f"--dict file not found: {path}")
+    try:
+        user_dict = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        sys.exit(f"--dict parse error: {e}")
+    if not isinstance(user_dict, dict):
+        sys.exit("--dict must be a JSON object {en_token: target_string}")
+    merged = dict(EN_ZH)
+    merged.update({str(k).lower(): str(v) for k, v in user_dict.items()})
+    return merged
 
 
 def main():
@@ -181,6 +224,8 @@ def main():
     ap.add_argument("repo")
     ap.add_argument("--vault", default=str(DEFAULT_VAULT))
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--dict", dest="dict_path", default=None,
+                    help="optional JSON file extending EN→XX dictionary")
     args = ap.parse_args()
 
     vault = pathlib.Path(args.vault).expanduser().resolve()
@@ -192,8 +237,10 @@ def main():
     if not idx:
         sys.exit(f"no index file (索引.md / index.md) in {repo_dir}")
 
+    en_xx = load_dict(pathlib.Path(args.dict_path)) if args.dict_path else dict(EN_ZH)
+
     pairs = parse_index(idx)
-    print(f"==> parsed {len(pairs)} (slug, 中文名) pairs from {idx.name}")
+    print(f"==> parsed {len(pairs)} (slug, name) pairs from {idx.name}")
 
     files = [p for p in repo_dir.rglob("*.md")
              if p.name not in ("_index.md", idx.name)]
@@ -207,7 +254,7 @@ def main():
 
     matched, unmatched = {}, []
     for slug, name in pairs:
-        f = best_match(slug, name, files, body_h1)
+        f = best_match(slug, name, files, body_h1, en_xx)
         if f:
             matched.setdefault(f, []).append(slug)
         else:
@@ -215,24 +262,30 @@ def main():
 
     changed = 0
     for f, slugs in matched.items():
-        fm, body, original = file_state[f]
+        fm, body, _original = file_state[f]
         existing = parse_aliases_field(fm.get("aliases", ""))
-        merged = list(dict.fromkeys(existing + slugs))  # preserve order, unique
+        merged = list(dict.fromkeys(existing + slugs))
         if merged == existing:
-            continue  # already up-to-date
+            continue
         fm["aliases"] = merged
         new_text = serialize_fm(fm) + body.lstrip("\n")
         if not args.dry_run:
             f.write_text(new_text, encoding="utf-8")
         changed += 1
 
-    print(f"==> matched: {len(matched)} files, total slugs: {sum(len(v) for v in matched.values())}")
+    print(f"==> matched: {len(matched)} files, total slugs: "
+          f"{sum(len(v) for v in matched.values())}")
     print(f"==> unmatched: {len(unmatched)}")
     for slug, name in unmatched[:20]:
         print(f"     - [[{slug}]] = '{name}'")
+        candidates = candidates_for_unmatched(slug, files, top_k=3)
+        if candidates:
+            print(f"       candidates: " +
+                  ", ".join(c.relative_to(repo_dir).as_posix() for c in candidates))
     if len(unmatched) > 20:
         print(f"     ... and {len(unmatched) - 20} more")
-    print(f"==> {'(dry-run) would update' if args.dry_run else 'updated'}: {changed} file(s)")
+    print(f"==> {'(dry-run) would update' if args.dry_run else 'updated'}: "
+          f"{changed} file(s)")
 
 
 if __name__ == "__main__":

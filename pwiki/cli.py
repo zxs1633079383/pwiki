@@ -13,6 +13,7 @@ SUBCOMMANDS = {
     "canvas": ("pwiki.canvas", "render the Vault as a multi-repo JSON Canvas"),
     "brief": ("pwiki.brief", "build today's morning-brief skeleton"),
     "evolution": ("pwiki.evolution", "roll up the past week's self-evolution entries"),
+    "query": ("pwiki.query", "search Vault notes by query string"),
 }
 
 

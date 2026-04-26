@@ -26,7 +26,7 @@ def test_version() -> None:
 def test_help_lists_all_subcommands() -> None:
     r = _run_pwiki("--help")
     assert r.returncode == 0
-    for sub in ("sync", "aliases", "canvas", "brief", "evolution"):
+    for sub in ("sync", "aliases", "canvas", "brief", "evolution", "query"):
         assert sub in r.stdout, f"{sub} missing from --help output"
 
 
@@ -65,9 +65,15 @@ def test_aliases_help() -> None:
     assert "repo" in r.stdout.lower()
 
 
+def test_query_help() -> None:
+    r = _run_pwiki("query", "--help")
+    assert r.returncode == 0
+    assert "query" in r.stdout.lower()
+
+
 def test_imports() -> None:
     """Every module imports cleanly without side effects."""
     import pwiki  # noqa: F401
-    from pwiki import sync, aliases, canvas, brief, evolution  # noqa: F401
+    from pwiki import sync, aliases, canvas, brief, evolution, query  # noqa: F401
 
     assert pwiki.__version__

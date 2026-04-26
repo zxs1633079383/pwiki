@@ -8,6 +8,7 @@ that Claude Code (or any LLM) can reason over.
     pwiki canvas                     # render Vault → multi-repo JSON Canvas
     pwiki brief                      # build today's morning brief skeleton
     pwiki evolution                  # weekly rollup of self-evolution entries
+    pwiki query "<text>"             # search Vault notes (grep + frontmatter)
 
 The Vault layout this assumes (auto-created on first sync):
 
@@ -25,4 +26,4 @@ Karpathy's framing:
 """
 
 __version__ = "0.1.0"
-__all__ = ["sync", "aliases", "canvas", "brief", "evolution"]
+__all__ = ["sync", "aliases", "canvas", "brief", "evolution", "query"]
