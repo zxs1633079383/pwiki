@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+*.egg
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# vhs intermediate (keep .gif, drop .mp4/.webm)
+*.mp4
+*.webm
+demo.tape.bak
+out.txt
+
+# Local Vault test fixture
+examples/sample-vault/.obsidian/workspace*
+examples/sample-vault/.obsidian/cache
+
+# Secrets (never commit)
+.env
+.env.*
+!.env.example
