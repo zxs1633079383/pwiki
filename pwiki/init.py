@@ -150,8 +150,56 @@ AI_TOOLS = [
 ]
 
 
-def detect_ai_tools(cwd: pathlib.Path) -> list[dict]:
-    """For each known tool, decide whether we WILL/CAN write to it."""
+def _tool_installed(name: str, target: pathlib.Path) -> tuple[bool, str]:
+    """Detect whether a given AI tool is plausibly used by this user.
+
+    Two signals:
+      1. project already has the tool's config file (or .cursor/ dir) → user uses it
+      2. local install detected via PATH binary or known app/extension dir
+    Returns (installed, reason). Reason is short string for the print line.
+    """
+    # Signal 1: project already has the tool's config file
+    if target.is_file():
+        return True, "config file present"
+    if name == "Cursor" and target.parent.is_dir():
+        return True, ".cursor/ dir present"
+
+    # Signal 2: local install
+    home = pathlib.Path.home()
+    if name == "Claude Code" and shutil.which("claude"):
+        return True, "claude on PATH"
+    if name == "Codex CLI" and shutil.which("codex"):
+        return True, "codex on PATH"
+    if name == "Gemini CLI" and shutil.which("gemini"):
+        return True, "gemini on PATH"
+    if name == "Cursor":
+        if pathlib.Path("/Applications/Cursor.app").exists():
+            return True, "Cursor.app installed"
+        if shutil.which("cursor"):
+            return True, "cursor on PATH"
+    if name == "Cline":
+        # Cline is a VSCode/Cursor/Windsurf extension — check common ext dirs
+        for vs in (".vscode", ".vscode-insiders", ".cursor", ".windsurf"):
+            ext_dir = home / vs / "extensions"
+            if ext_dir.is_dir():
+                try:
+                    for p in ext_dir.iterdir():
+                        if p.name.startswith("saoudrizwan.claude-dev"):
+                            return True, f"Cline ext in ~/{vs}"
+                except OSError:
+                    continue
+    return False, ""
+
+
+def detect_ai_tools(cwd: pathlib.Path, force_all: bool = False,
+                    only: set[str] | None = None) -> list[dict]:
+    """For each known tool, decide whether we WILL/CAN write to it.
+
+    Eligibility rules (in order):
+      • force_all=True → all tools eligible
+      • only is a set → only those tools eligible (lowercase first-word match)
+      • otherwise → eligible iff _tool_installed() returns True
+    """
     out = []
     for name, rel, mode in AI_TOOLS:
         target = cwd / rel
@@ -167,8 +215,20 @@ def detect_ai_tools(cwd: pathlib.Path) -> list[dict]:
             else:
                 # Cursor rules dir doesn't exist; offer to create
                 action = "create-with-parent"
+
+        # Eligibility
+        if force_all:
+            eligible, reason = True, "forced via --all"
+        elif only is not None:
+            tool_key = name.lower().split()[0]
+            eligible = tool_key in only
+            reason = "explicit via --only" if eligible else "not in --only"
+        else:
+            eligible, reason = _tool_installed(name, target)
+
         out.append({"tool": name, "rel": rel, "target": target,
-                    "mode": mode, "action": action})
+                    "mode": mode, "action": action,
+                    "eligible": eligible, "reason": reason})
     return out
 
 
@@ -603,7 +663,16 @@ def main() -> int:
                     help="skip generating docs/wiki/ scaffold even if absent")
     ap.add_argument("--no-first-run", action="store_true",
                     help="skip the first sync+canvas after writing instructions")
+    ap.add_argument("--all", action="store_true", dest="force_all",
+                    help="write to all 5 AI tool files even if not detected on this machine")
+    ap.add_argument("--only", default=None,
+                    help="comma-separated subset, e.g. --only=claude,cursor "
+                         "(keys: claude, codex, gemini, cline, cursor)")
     args = ap.parse_args()
+    only_set = (
+        {s.strip().lower() for s in args.only.split(",") if s.strip()}
+        if args.only else None
+    )
 
     cwd = pathlib.Path(args.cwd).expanduser().resolve()
     if not cwd.is_dir():
@@ -625,18 +694,30 @@ def main() -> int:
         print(f"  found wiki  : (none — will offer to bootstrap)")
 
     # 2. detect AI tools
-    tools = detect_ai_tools(cwd)
+    tools = detect_ai_tools(cwd, force_all=args.force_all, only=only_set)
     print()
-    print("🔍 AI agent tools in this project:")
+    print("🔍 AI agent tools detected on this machine + in this project:")
+    eligible_count = sum(1 for t in tools if t["eligible"])
     for t in tools:
-        glyph = {"append": "✓", "create": "⚪", "create-with-parent": "⚪",
-                 "skip-exists": "✓", None: "✗"}.get(t["action"], "✗")
-        suffix = {"append": "(will inject section)",
-                  "create": "(will create)",
-                  "create-with-parent": "(will create dir + file)",
-                  "skip-exists": "(already has pwiki section — will update)"
-                  }.get(t["action"], "(skip)")
+        if t["eligible"]:
+            glyph = {"append": "✓", "create": "⚪", "create-with-parent": "⚪",
+                     "skip-exists": "✓", None: "✗"}.get(t["action"], "✗")
+            suffix_action = {"append": "will inject section",
+                             "create": "will create",
+                             "create-with-parent": "will create dir + file",
+                             "skip-exists": "already has pwiki section — will update"
+                             }.get(t["action"], "skip")
+            suffix = f"({t['reason']}; {suffix_action})"
+        else:
+            glyph = "⊘"
+            suffix = "(not detected — skipping; pass --all to force)"
         print(f"   {glyph} {t['tool']:<13} → {t['rel']:<30} {suffix}")
+
+    if eligible_count == 0:
+        print()
+        print("⚠️  no AI tools detected on this machine.")
+        print("   if you do use one, re-run with --all  or  --only=claude,cursor,gemini,codex,cline")
+        sys.exit(1)
 
     print()
     vault_path = _ask_path("Vault path?", args.vault, args.yes)
@@ -663,6 +744,9 @@ def main() -> int:
     if do_write_tools:
         body = render_instructions(proj, vault_path)
         for t in tools:
+            # 0.3.3: skip tools that aren't installed on this machine
+            if not t["eligible"]:
+                continue
             if t["action"] in (None, "skip-exists"):
                 # skip-exists: update existing pwiki section (handled by write_or_inject append mode)
                 if t["action"] == "skip-exists" and t["mode"] == "append":

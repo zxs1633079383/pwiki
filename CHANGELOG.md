@@ -5,6 +5,43 @@ All notable changes to pwiki will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] — 2026-04-27
+
+The "stop polluting people's projects" patch. Real-user feedback：
+"我本地没有 codex 还给我生成了 AGENTS.md 什么的"——`pwiki init` 之前
+无脑给 5 种 AI 工具全部生成 instruction 文件，不管你本地是否实际装了。
+
+### Added
+
+- **`_tool_installed()` 本地检测函数**：
+  - **Claude Code**：`shutil.which("claude")` PATH 查找
+  - **Codex CLI**：`shutil.which("codex")`
+  - **Gemini CLI**：`shutil.which("gemini")`
+  - **Cursor**：macOS 检查 `/Applications/Cursor.app`，其他系统 `which cursor`
+  - **Cline**：扫 `~/.vscode/extensions`、`~/.vscode-insiders/extensions`、
+    `~/.cursor/extensions`、`~/.windsurf/extensions` 找 `saoudrizwan.claude-dev*`
+  - **保底信号**：项目里已有该工具的配置文件（CLAUDE.md / AGENTS.md / .clinerules
+    / .cursor/）也算"用户在用"
+- **`--all` flag**：强制写所有 5 个文件（恢复 0.3.2 之前的行为，给在远程 server
+  init 又想 push 给本地用的场景用）
+- **`--only=claude,cursor` flag**：手动指定写哪几个
+
+### Changed
+
+- `pwiki init` 输出第二段标题改成
+  "🔍 AI agent tools **detected on this machine + in this project**"
+  ——明确告诉用户这是本地检测结果，不是无脑列表
+- 检测命中显示 `✓` + 命中原因（"claude on PATH" / "Cursor.app installed" /
+  "config file present"），未命中显示 `⊘` + "not detected — skipping;
+  pass --all to force"
+- 0 个工具命中时直接 exit 1，并提示用 `--all` 或 `--only`
+
+### Why this matters
+
+OSS 工具的"客户端尊重"是底线之一——往用户项目里塞他根本不用的 AI 工具
+配置文件等于擅自污染。0.3.3 之后 `pwiki init` 只动你实际装了的工具的
+配置文件。
+
 ## [0.3.2] — 2026-04-27
 
 The "wiped the leftover crumbs" patch. Two real-user reports back-to-back:
