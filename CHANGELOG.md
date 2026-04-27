@@ -5,6 +5,43 @@ All notable changes to pwiki will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] — 2026-04-27
+
+The "wiped the leftover crumbs" patch. Two real-user reports back-to-back:
+
+1. New user running `pwiki init` saw the prompt **"Bootstrap docs/wiki/
+   scaffold + LLM prompt?"** and asked "what's an LLM prompt? do I need
+   one?" — turns out 0.3.0 already removed `_llm-prompt.md` generation,
+   but three printout strings inside `pwiki/init.py` still mentioned it.
+   Pure stale-text confusion.
+2. Front-end project at `~/Downloads/venus` reported **1,396,520 LOC**
+   (across "0 modules") on a JavaScript repo — same root cause as the
+   cses-client bug found yesterday: `SKIP_DIRS` doesn't include `assets/`
+   `public/` `static/`, where front-end projects routinely vendor Monaco /
+   TinyMCE / AceEditor / fonts (100K+ LOC each).
+
+### Fixed
+
+- **Removed three stale `_llm-prompt.md` references** in `pwiki/init.py`:
+  - line 8 docstring — corrected to describe scaffold (no prompt file)
+  - prompt text — `"Bootstrap docs/wiki/ scaffold + LLM prompt?"` →
+    `"Bootstrap docs/wiki/ scaffold (4 category dirs + 索引.md + log.md)?"`
+  - post-bootstrap "next" tip — now points at the AI tool directly
+  - final summary line — now reads `"帮我填 wiki" / "fill the wiki"` →
+    AI reads CLAUDE.md protocol
+- **`SKIP_DIRS` now includes `assets`, `public`, `static`** — front-end
+  vendored bundles no longer inflate the LOC count by 10×-100×.
+- **`scale:` line suppresses `across N modules` when N == 0** — small
+  flat-layout projects (no `src/` / `lib/` / `packages/`) no longer print
+  the misleading "across 0 modules".
+
+### Why this matters
+
+0.3.1 was the protocol upgrade. 0.3.2 is the pre-flight check for the
+launch tweet — every new user runs `pwiki init` first, and a confusing
+prompt at step 4 is enough for them to bounce. Patching the rough edge
+costs less than re-acquiring the user.
+
 ## [0.3.1] — 2026-04-27
 
 The "stop writing stubs" release. Real-user dogfood on a 50K+ LOC

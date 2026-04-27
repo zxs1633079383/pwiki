@@ -5,8 +5,9 @@ What it does (in order):
   2. Detect AI agent tooling (CLAUDE.md, AGENTS.md, .cursor/, GEMINI.md, .clinerules).
   3. Ask 4 yes/no questions (defaults reasonable so just `pwiki init -y` works).
   4. Write per-tool instructions so the user's AI can call pwiki without manual CLI.
-  5. Bootstrap docs/wiki/ if absent: minimal scaffold + an `_llm-prompt.md` the
-     user pastes into their AI to fill in real content.
+  5. Bootstrap docs/wiki/ if absent: minimal scaffold (category dirs +
+     索引.md + log.md). The AI reads the LLM Wiki protocol directly from
+     CLAUDE.md / AGENTS.md / .cursor/rules — no separate prompt file.
   6. Run first `sync` + `aliases` + `canvas` against the chosen Vault.
   7. Save config to ./.pwikirc.json.
 
@@ -40,6 +41,10 @@ SKIP_DIRS = {
     "node_modules", "target", "dist", "build", ".git", ".venv", "venv",
     "__pycache__", ".next", ".nuxt", "out", "vendor", ".pwiki", ".idea",
     ".vscode", "coverage", ".pytest_cache", ".mypy_cache", "site-packages",
+    # 0.3.2: front-end projects often vendor third-party code (Monaco,
+    # TinyMCE, AceEditor, fonts) under assets/ public/ static/. These can
+    # add 100K+ phantom LOC and inflate the page-count recommendation.
+    "assets", "public", "static",
 }
 
 
@@ -610,7 +615,8 @@ def main() -> int:
     # 1. detect project
     proj = detect_project(cwd)
     print(f"  language    : {proj['lang']}  (git: {'yes' if proj['is_git'] else 'no'})")
-    print(f"  scale       : {proj['loc']:,} LOC across {proj['n_modules']} modules → recommend {proj['page_range']} wiki pages")
+    modules_part = f" across {proj['n_modules']} modules" if proj['n_modules'] > 0 else ""
+    print(f"  scale       : {proj['loc']:,} LOC{modules_part} → recommend {proj['page_range']} wiki pages")
     if proj.get("arch_docs"):
         print(f"  arch docs   : {', '.join(proj['arch_docs'][:3])}{' …' if len(proj['arch_docs'])>3 else ''}")
     if proj["wiki_dir"]:
@@ -637,7 +643,7 @@ def main() -> int:
     do_bootstrap = (
         proj["wiki_dir"] is None
         and not args.no_bootstrap
-        and _ask("Bootstrap docs/wiki/ scaffold + LLM prompt?", "Y", args.yes)
+        and _ask("Bootstrap docs/wiki/ scaffold (4 category dirs + 索引.md + log.md)?", "Y", args.yes)
     )
     do_write_tools = _ask("Write pwiki instructions to AI tools above?", "Y", args.yes)
     do_first_run = (
@@ -650,7 +656,7 @@ def main() -> int:
         wiki = bootstrap_wiki(cwd, proj["name"])
         proj["wiki_dir"] = str(wiki)
         print(f"\n✓ created scaffold at {wiki}")
-        print(f"  next: open _llm-prompt.md in Cursor/Claude/Codex and let your AI fill the pages")
+        print(f"  next: open Cursor / Claude Code / Codex / Gemini CLI in this project and say '帮我填 wiki' / 'fill the wiki'")
 
     # 4. write AI instructions
     written: list[tuple[str, str, str]] = []
@@ -720,7 +726,7 @@ def main() -> int:
     print("   AI tool (Cursor / Claude Code / Codex / Gemini CLI) in this project")
     print("   and try saying:")
     print()
-    print("     • 'help me fill docs/wiki' — AI reads _llm-prompt.md, generates pages")
+    print("     • '帮我填 wiki' / 'fill the wiki' — AI reads CLAUDE.md protocol, writes pages")
     print("     • 'sync the wiki'           — AI runs `pwiki sync` for you")
     print("     • '今天的早报'              — AI runs `pwiki brief` and reads §①")
     print(f"     • 'find my notes on X'      — AI runs `pwiki query --rag '...'`")
