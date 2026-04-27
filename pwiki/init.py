@@ -97,8 +97,9 @@ LLM-readable knowledge management. When the user makes any of the
 following requests, run the corresponding command instead of writing
 custom code:
 
-| User intent (any of these phrasings) | Run this |
+| User intent (any of these phrasings) | Action |
 |---|---|
+| **"fill the wiki" / "帮我填 wiki" / "扫一下源码写 wiki" / "generate the wiki from my code"** — and especially when `docs/wiki/` exists but is empty/stub | **Multi-step** (see "Wiki bootstrap protocol" below) |
 | "sync wiki" / "同步 wiki" / "推 wiki 到 vault" / after editing `docs/wiki/` | `pwiki sync ./docs/wiki {project_name}` |
 | "解析 wikilink" / unresolved `[[slug]]` after sync | `pwiki aliases {project_name}` |
 | "看图谱" / "canvas" / "knowledge graph" | `pwiki canvas` (then open `Vault/canvas/all-repos.canvas` in Obsidian) |
@@ -110,8 +111,38 @@ custom code:
 **Vault path**: `{vault_path}`
 **Project name** (use as `<repo>` arg): `{project_name}`
 
-After every `pwiki sync`, run `pwiki aliases {project_name}` if the wiki
-uses `[[english-slug]]` references against non-English filenames.
+### Wiki bootstrap protocol (when the user asks "fill the wiki")
+
+If `docs/wiki/` exists but most leaf `.md` files are empty (only frontmatter
+or only category-stub `_llm-prompt.md`), follow these steps without further
+prompting:
+
+1. **Read** `docs/wiki/_llm-prompt.md` for the project-specific instructions.
+2. **Read** the project's README, top-level source directory listing, and
+   primary package metadata (`package.json` / `pyproject.toml` / `go.mod` /
+   `Cargo.toml` / `pom.xml`). Infer the architecture in 1-2 paragraphs.
+3. **Pick 5-15 significant modules / classes / flows** from the source.
+   Group them as 实体 (entities) / 概念 (concepts) / 操作 (operations) /
+   对比 (comparisons).
+4. **Write one markdown file per item** under
+   `docs/wiki/{{实体|概念|操作|对比}}/<short-chinese-name>.md`. Each file:
+   - starts with `# <Title>` matching the file stem
+   - 200-600 words, plain markdown, no JSX/HTML widgets
+   - cite specific source paths inline (e.g. ``src/foo/bar.ts:123``) for
+     every load-bearing claim
+   - link related pages with `[[english-slug]]` (the slug must be a stable,
+     URL-safe lowercase token; `pwiki aliases` will resolve it later)
+5. **Write `docs/wiki/索引.md`** listing every page once, grouped by
+   category, in the format `- [[english-slug]] — **中文名**: one-line hook`.
+6. **Run** `pwiki sync ./docs/wiki {project_name}` then
+   `pwiki aliases {project_name}` to push everything into the Vault.
+7. **Tell the user** how many files were generated, the canvas command, and
+   one suggested next question they could ask the wiki via `pwiki query --rag`.
+
+**Quality bar**: a stranger reading the wiki should be able to answer
+"what does this project do, what are its 5 main pieces, and how do they
+fit together" in under 10 minutes. Pages that just paraphrase comments
+or restate filenames are zero-value — skip them.
 
 Install (if missing): `pip install -U "pwiki-cli[rag,serve]"`
 Full docs: https://github.com/zxs1633079383/pwiki
@@ -126,48 +157,84 @@ def render_instructions(project_name: str, vault_path: str) -> str:
 
 
 WIKI_PROMPT_TEMPLATE = """\
-# LLM prompt — fill this `docs/wiki/` for me
+# LLM prompt — fill this `docs/wiki/` for project `{project_name}`
 
-Hi LLM. This is a `pwiki`-managed wiki scaffold for the `{project_name}` project.
-Your job: read the source code under `..` (project root) and fill the empty
-markdown files below following Karpathy's "LLM Wiki" pattern.
+You are an AI agent (Claude / Cursor / Codex / Gemini / etc.) running in
+this project's working directory. The user has just initialized pwiki and
+is asking you to populate `docs/wiki/` from the source code.
 
-> "Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase."
+> *"Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase."*
 > — Andrej Karpathy
 
-## Layout to fill
+## What to do (in order — do not skip steps)
 
+**Step 1. Read project context.**
+- `README.md` (or `README.*` if non-md) at the project root
+- The package manifest: `package.json` / `pyproject.toml` / `go.mod` /
+  `Cargo.toml` / `pom.xml` — whichever exists
+- The top-level source directory listing (`src/`, `app/`, `lib/`, `cmd/`,
+  `internal/` — whichever exists). Don't read every file; just understand the
+  layout.
+
+**Step 2. Pick 5-15 significant items.** Group them as:
+- **实体 (entities)** — concrete packages / modules / classes / services
+- **概念 (concepts)** — algorithms / models / abstract patterns
+- **操作 (operations)** — flows / pipelines / step-by-step how-tos
+- **对比 (comparisons)** — this project's choice vs the alternatives
+
+Skip trivial items (test fixtures, generated files, third-party vendor dirs).
+
+**Step 3. Write one markdown file per item** at
+`docs/wiki/{{实体|概念|操作|对比}}/<short-name>.md`. Each file:
+
+- Starts with `# <Title>` matching the file stem.
+- 200-600 words. Plain markdown only — no JSX, HTML widgets, mermaid that
+  doesn't render in plain Obsidian.
+- Cite source paths inline for every load-bearing claim:
+  `<src/foo/bar.ts:123>` or just `src/foo/bar.ts`.
+- Link related pages using `[[english-slug]]` (the slug must be lowercase,
+  URL-safe, hyphenated; pwiki's `aliases` command resolves these to the
+  actual filenames you wrote).
+
+**Step 4. Write `docs/wiki/索引.md`** that lists every page once, grouped by
+category, in this exact format (one line per page):
+
+```markdown
+## 概念（Concepts）
+- [[short-slug]] — **中文名**: one-line hook ≤ 80 chars
+- ...
+
+## 实体（Entities）
+- [[other-slug]] — **中文名**: ...
 ```
-docs/wiki/
-├── 索引.md         # the index — list every page below as `- [[slug]] — **中文名**: one-line hook`
-├── 概念/           # concepts: algorithms, models, abstract patterns
-├── 实体/           # entities: packages, modules, classes, services
-├── 操作/           # operations: flows, pipelines, how-tos
-└── 对比/           # comparisons: vs alternatives, tradeoff tables
-```
 
-## Rules
+**Step 5. Run pwiki commands** to push the wiki into the user's Vault:
 
-1. Each leaf `.md` file has YAML frontmatter pwiki adds automatically; you fill
-   the body. The body MUST start with `# <Title>` matching the file stem.
-2. Use `[[english-slug]]` references between pages. pwiki's `aliases` command
-   will auto-resolve them against Chinese-named files.
-3. One file per concept. 200–600 words each. Plain markdown, no JSX.
-4. The `索引.md` index lists every other page once, grouped by category, with a
-   one-line "hook" so an LLM can decide which page to read.
-5. Cite specific source paths (`gitnexus/src/foo.ts:123`) wherever a claim
-   ties to code.
-
-## After you finish
-
-Tell the user to run:
-```
+```bash
 pwiki sync ./docs/wiki {project_name}
 pwiki aliases {project_name}
 pwiki canvas
 ```
 
-Then they'll see the multi-repo knowledge graph in Obsidian.
+**Step 6. Tell the user** in one short message:
+- How many pages you wrote (e.g. "11 pages: 4 实体 / 3 概念 / 3 操作 / 1 对比")
+- One sample interesting cross-link (e.g. "`[[auth-flow]]` references `[[token-store]]`")
+- One example query they can run: ``pwiki query --rag "how does X work"``
+
+## Quality bar (skip pages that fail this)
+
+A stranger reading your output should be able to answer in under 10 minutes:
+1. What does this project do?
+2. What are its 5 main pieces?
+3. How do those pieces fit together?
+
+If a page just paraphrases code comments or restates filenames, skip it.
+Each page should make a non-obvious claim and back it with code citation.
+
+## Frontmatter
+
+`pwiki sync` adds YAML frontmatter (source_repo / last_synced /
+ebbinghaus_stage etc.) automatically — you write only the body content.
 """
 
 

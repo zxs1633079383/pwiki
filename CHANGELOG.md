@@ -5,6 +5,39 @@ All notable changes to pwiki will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-04-27
+
+Closes the last manual gap in the "init → wiki content" flow. After 0.2.0,
+the user still had to know to say something like "open docs/wiki/_llm-prompt.md
+and follow it". 0.2.1 makes `"fill the wiki"` (or any natural variant) a
+top-level trigger in every AI tool's instruction file — the AI handles the
+rest, including running pwiki sync at the end.
+
+### Added
+
+- **"fill the wiki" trigger** in every per-tool instruction file (CLAUDE.md /
+  AGENTS.md / GEMINI.md / .clinerules / .cursor/rules/pwiki.md). Triggers on:
+  - English: "fill the wiki" / "scan my code and write the wiki" / "generate the wiki from my code"
+  - Chinese: "帮我填 wiki" / "扫一下源码写 wiki"
+  - Implicit: when `docs/wiki/` exists but leaf files are empty
+- **6-step "Wiki bootstrap protocol"** in the AI instruction template, plus
+  an explicit quality bar ("a stranger reading should be able to answer
+  what / 5 pieces / how they fit together in under 10 minutes; skip pages
+  that just paraphrase comments").
+
+### Changed
+
+- **`docs/wiki/_llm-prompt.md` template** rewritten for AI agents
+  (not humans) — explicit Step 1-6 sequence, file format requirements,
+  citation expectations.
+
+### Migration
+
+Re-run `pwiki init -y` in any project that was init'd with 0.2.0. The
+marker pair `<!-- pwiki:begin --> ... <!-- pwiki:end -->` will update the
+instruction sections in place; existing CLAUDE.md / AGENTS.md content
+outside those markers is preserved.
+
 ## [0.2.0] — 2026-04-27
 
 The "100% automation, not 95%" release. Real-user feedback was that 0.1.x
