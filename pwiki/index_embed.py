@@ -29,13 +29,27 @@ HEADING_RE = re.compile(r"(?m)^(#{1,3}\s+.*)$")
 
 def _import_deps():
     """Lazy import: keep pwiki itself dep-free unless --rag is used."""
+    import warnings as _w
+    # fastembed 0.8 emits a one-time UserWarning about mean pooling vs CLS for the
+    # multilingual MiniLM model. It's informational only and pollutes every CLI
+    # run. Silence it; the embeddings remain functionally identical for our use.
+    _w.filterwarnings(
+        "ignore",
+        message=".*mean pooling.*",
+        category=UserWarning,
+    )
+    _w.filterwarnings(
+        "ignore",
+        message=".*pinning fastembed.*",
+        category=UserWarning,
+    )
     try:
         from fastembed import TextEmbedding  # type: ignore
         import numpy as np  # type: ignore
     except ImportError:
         sys.exit(
             "pwiki query --rag requires the [rag] extra.\n"
-            "Install:  pip install 'pwiki[rag]'\n"
+            "Install:  pip install 'pwiki-cli[rag]'\n"
             "(adds fastembed + numpy; first use downloads ~120MB ONNX model)"
         )
     return TextEmbedding, np
