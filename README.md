@@ -1,9 +1,11 @@
 # pwiki
 
-> **Karpathy's LLM Wiki, brew-install ready.**
-> Turn any folder into a self-maintaining knowledge base your LLM can actually reason over.
+**English** | [中文](README-zh.md)
 
-[![PyPI version](https://img.shields.io/pypi/v/pwiki.svg)](https://pypi.org/project/pwiki/)
+> **Karpathy's LLM Wiki, one `pip install` away.**
+> Turn any folder into a self-maintaining knowledge base your LLM can actually reason over — at the same depth a senior engineer would write.
+
+[![PyPI version](https://img.shields.io/pypi/v/pwiki-cli.svg)](https://pypi.org/project/pwiki-cli/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Karpathy LLM Wiki](https://img.shields.io/badge/pattern-Karpathy_LLM_Wiki-purple.svg)](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
@@ -38,25 +40,48 @@ Requires Python 3.10+ and a folder you want to use as your Obsidian Vault (defau
 ```bash
 cd ~/your-project
 pip install -U "pwiki-cli[rag,serve]"
-pwiki init                  # 1. detects project + AI tools
-                            # 2. writes Karpathy's full LLM Wiki pattern into
-                            #    CLAUDE.md / AGENTS.md / .cursor/rules / GEMINI.md / .clinerules
-                            # 3. bootstraps docs/wiki/ scaffold
+pwiki init                  # 1. counts your LOC, recommends a page count tier
+                            # 2. detects 5 AI tools (CLAUDE.md / AGENTS.md / .cursor/rules / GEMINI.md / .clinerules)
+                            # 3. injects Karpathy's full LLM Wiki pattern into each
+                            # 4. bootstraps docs/wiki/ scaffold
+```
+
+What you'll see (real output on a 50K-LOC project):
+
+```
+🐦 pwiki init  (v0.3.1)
+  project root: /Users/you/your-project
+  language    : javascript  (git: yes)
+  scale       : 52,431 LOC across 14 modules → recommend 35-50 wiki pages
+  arch docs   : ARCHITECTURE.md, docs/CONVENTIONS.md
+✓ AI instructions written:
+   updated  CLAUDE.md   (Claude Code)
+   updated  AGENTS.md   (Codex CLI)
+   updated  GEMINI.md   (Gemini CLI)
+✅ pwiki init complete
 ```
 
 Now open Cursor / Claude Code / Codex / Gemini CLI in your project and **say**:
 
 > "fill the wiki" / "帮我填 wiki" / "scan my code and write the wiki"
 
-Your AI already has the full protocol in its loaded instructions: 6 page
-types (Entity / Concept / Operation / Comparison / Synthesis / Summary),
-8-step bootstrap, citation rules, quality bar. It reads your README + source
-tree, writes 5-15 pages, runs `pwiki sync` + `pwiki aliases` + `pwiki canvas`,
-and reports back. You don't type any other pwiki commands.
+Your AI already has the full **0.3.1 protocol** loaded:
 
-**Real example** — Angular 20 + Tauri 2 desktop client, 4205-line ARCHITECTURE.md:
-8 wiki pages distilled, 38 cross-page links, full canvas in `~60 seconds`,
-zero hand-typed CLI commands after `pwiki init`.
+- **Scale-aware page count** — your project's LOC determines target page count (5-8 / 10-15 / 20-30 / 35-50)
+- **6 page types** — Entity / Concept / Operation / Comparison / Synthesis / Summary
+- **Mandatory 6-section page structure** — TL;DR + ≥2 content sections + Source Anchors table (≥3 rows with line numbers) + ≥2 Q&A pairs + ≥2 wikilink cross-references
+- **Citation density target** — ≥3 source-path citations per page, with line numbers (`src/foo.ts:123`)
+- **Quality bar** — 400-800 words/page; stub pages are rejected output
+
+The AI reads your README + source tree, writes the pages, runs
+`pwiki sync` + `pwiki aliases` + `pwiki canvas`, and reports back.
+You don't type any other pwiki commands.
+
+**Real example** — Angular 20 + Tauri 2 desktop client, ~50K LOC:
+the scale signal flags the 50K+ tier → recommend 35-50 pages.
+Each page lands with a `源码锚点` table that anchors every claim back to
+specific `src-tauri/...` and `src/...` files at line numbers, so a new
+contributor can verify the wiki against the source before touching a PR.
 
 ## Manual mode (60 seconds, if you prefer to drive)
 
@@ -164,6 +189,7 @@ Architecture details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - ✅ **0.2**: alias Pass 4 支持英文文件名 + `pwiki query` (grep / RAG via fastembed multilingual MiniLM)
 - ✅ **0.3.0**: `pwiki init` — embeds Karpathy's full LLM Wiki pattern (3 layers / 3 operations / 6 page types / 8-step bootstrap / 7-step ingest / 5-category lint) into every AI tool's instruction file. AI auto-fills the wiki from your code; you say one phrase.
 - ✅ **0.3** (also): `pwiki serve` — local web UI with D3 Canvas viewer + inline grep/RAG search.
+- ✅ **0.3.1**: **stop writing stubs.** Scale-aware page count (5-8 / 10-15 / 20-30 / 35-50 by LOC tier) + mandatory 6-section page structure (TL;DR + Source Anchors table with line numbers + Q&A + cross-refs) + citation density target ≥3/page. Real-user dogfood on a 50K LOC repo found AI was writing 8 stubs when 25-30 deep pages were needed. 0.3.1 fixes the protocol so the AI defaults to deep, not shallow.
 - 🟡 **0.4** (hosted, not started): one-click LiveSync-as-a-service so multi-device sync stops being a CouchDB project. Spec: [`docs/0.4-hosted-spec.md`](docs/0.4-hosted-spec.md). Implementation gated on ⭐ ≥ 300 (premature SaaS without traction is a known anti-pattern).
 
 ## Pricing (Freemium)
