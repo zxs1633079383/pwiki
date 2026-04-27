@@ -71,7 +71,7 @@ Karpathy 的原话最准：
 
 这个 pattern 是他的，包装是我的。
 
-MIT 协议，能跑，就这样。
+MIT 协议，v0.1.1，刚上 PyPI，dogfood 跑过 33 篇真实笔记。issue 反馈欢迎。
 ```
 
 ### Tweet 6 — CTA（双轨）
@@ -89,7 +89,7 @@ MIT 协议，能跑，就这样。
 
 ### 第一条 Reply（链接放这里）
 ```
-pip install pwiki-cli
+pip install -U pwiki-cli
 
 仓: github.com/zxs1633079383/pwiki
 Karpathy 原 Gist: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
@@ -116,7 +116,7 @@ Karpathy 原 Gist: https://gist.github.com/karpathy/442a6bf555914893e9891c11519d
 Karpathy 原话："Obsidian 是 IDE，LLM 是程序员，wiki 是源代码。"
 
 仓: github.com/zxs1633079383/pwiki
-PyPI: pip install pwiki-cli
+PyPI: pip install -U pwiki-cli
 MIT 协议，能跑。
 
 什么场景最受用？我猜两个：
@@ -163,7 +163,7 @@ pwiki —— pip install 一行 + 5 个正交命令：
 - 33 篇笔记 → 130 条跨仓 wikilink 自动连边
 - 235 chunks 本地 RAG 索引
 - 安装到能跑 demo 不超过 60 秒
-- pip install pwiki-cli 一行装好
+- pip install -U pwiki-cli 一行装好
 
 🔗 仓: github.com/zxs1633079383/pwiki
 🆓 MIT 协议永久免费
@@ -215,7 +215,7 @@ B 站杰森效率工坊那期教学视频 21,680 播放、9.7% 收藏率，
 pwiki —— 一行 pip install 的 CLI：
 
 `​`​`bash
-pip install pwiki-cli   # PyPI 上 pwiki 名被占了，发布为 pwiki-cli；CLI 命令仍是 pwiki
+pip install -U pwiki-cli   # PyPI 上 pwiki 名被占了，发布为 pwiki-cli；CLI 命令仍是 pwiki
 pwiki sync ./your-repo/wiki your-repo
 pwiki canvas
 pwiki brief
@@ -247,7 +247,7 @@ pwiki brief
 ## 6. 仓库
 
 GitHub: https://github.com/zxs1633079383/pwiki
-PyPI: pip install pwiki-cli
+PyPI: pip install -U pwiki-cli
 
 MIT 协议。欢迎 PR。
 

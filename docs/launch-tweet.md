@@ -79,7 +79,7 @@ Karpathy framed it best:
 
 The pattern is his. The packaging is mine.
 
-MIT-licensed. Production-ready. Does what it says on the tin.
+MIT-licensed. v0.1.1 — early but dogfood-tested on 33 real notes. Issues welcome.
 ```
 
 ### Tweet 6 — CTA（双轨）
@@ -97,7 +97,7 @@ Repo + Karpathy's gist in the first reply ↓
 
 ### First Reply（链接放这里 — 算法友好）
 ```
-pip install pwiki-cli
+pip install -U pwiki-cli
 
 Repo: github.com/zxs1633079383/pwiki
 Karpathy's original gist: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
@@ -126,7 +126,7 @@ Your messy docs/wiki/ folder + Obsidian + Claude Code = a self-maintaining knowl
 
 I packaged Karpathy's LLM Wiki pattern as a CLI:
 
-  pip install pwiki-cli
+  pip install -U pwiki-cli
   pwiki sync ./repo/wiki repo
   pwiki canvas
 

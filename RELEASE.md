@@ -14,7 +14,7 @@
 > - Python import 仍是 `import pwiki`
 > - 所有 docs / launch-tweet / commit message 中的项目名仍是 pwiki
 > 影响范围（**变化**）：
-> - 安装命令：`pip install pwiki-cli`
+> - 安装命令：`pip install -U pwiki-cli`
 
 ```bash
 # 后续推送变更
@@ -63,7 +63,7 @@ bash scripts/release.sh
 ### 验证发布成功
 
 ```bash
-pip install pwiki-cli   # 注意：PyPI 包名 `pwiki` 已被占用，本仓发布为 `pwiki-cli`
+pip install -U pwiki-cli   # 注意：PyPI 包名 `pwiki` 已被占用，本仓发布为 `pwiki-cli`
 pwiki --version         # CLI 命令仍是 pwiki，import 路径仍是 import pwiki
 ```
 

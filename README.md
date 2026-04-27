@@ -26,7 +26,7 @@ It's the unopinionated middleware between **(your code)** and **(your second bra
 ## Install
 
 ```bash
-pip install pwiki-cli     # PyPI (the `pwiki` name was taken; CLI command is still `pwiki`)
+pip install -U pwiki-cli     # PyPI (the `pwiki` name was taken; CLI command is still `pwiki`)
 # or, from source:
 git clone https://github.com/zxs1633079383/pwiki && cd pwiki && pip install -e .
 ```
@@ -100,7 +100,7 @@ Six excellent open implementations have appeared in the 30 days since Karpathy's
 | [`Ar9av/obsidian-wiki`](https://github.com/Ar9av/obsidian-wiki) | Skill-based framework, ingest pipeline | One-line install, multi-repo Vault, JSON Canvas |
 | [`AgriciDaniel/claude-obsidian`](https://github.com/AgriciDaniel/claude-obsidian) | `/wiki /save /autoresearch` slash commands | Cross-repo concept carom + Ebbinghaus review |
 | [`NicholasSpisak/second-brain`](https://github.com/NicholasSpisak/second-brain) | Personal vault skills | Daily brief + weekly evolution rollup |
-| Karpathy's [original gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | The pattern itself | Production-ready CLI + per-command help |
+| Karpathy's [original gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | The pattern itself | Brew-install-ready CLI + per-command help |
 
 See [`docs/COMPARISON.md`](docs/COMPARISON.md) for a full breakdown.
 
