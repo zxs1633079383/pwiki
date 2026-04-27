@@ -5,6 +5,45 @@ All notable changes to pwiki will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-04-27
+
+The "100% automation, not 95%" release. Real-user feedback was that 0.1.x
+required ~7 manual CLI steps to get going, plus the user had to know what a
+`docs/wiki/` directory is supposed to contain. Both barriers gone.
+
+### Added
+
+- **`pwiki init`** — first-time setup that aims for zero further CLI use:
+  1. Detects project metadata (Python / Node / Go / Rust / Java + git).
+  2. Detects 5 AI agent tools and writes per-tool instructions:
+     - `CLAUDE.md` (Claude Code, append-or-update an injected section)
+     - `AGENTS.md` (Codex CLI)
+     - `GEMINI.md` (Gemini CLI)
+     - `.clinerules` (Cline)
+     - `.cursor/rules/pwiki.md` (Cursor)
+  3. Bootstraps `docs/wiki/` with category dirs + an `_llm-prompt.md` the
+     user pastes into their AI to fill real content.
+  4. Saves `./.pwikirc.json` (project_name, vault_path, written tools).
+  5. (Optional) Runs first `sync + aliases + canvas` against the chosen Vault.
+
+  After `pwiki init`, the user shouldn't need to type pwiki commands —
+  they say "sync this wiki" / "今天的早报" to their AI tool, which reads
+  the per-tool instructions file and runs the right command.
+
+- **Per-tool instructions template** — same content, formatted for each
+  agent's loading convention. Marker pair `<!-- pwiki:begin --> ... <!-- pwiki:end -->`
+  lets re-running `pwiki init` update the section in place without
+  clobbering other content in `CLAUDE.md` / `AGENTS.md`.
+
+- **`pwiki init -y`** non-interactive mode for CI / scripted setup.
+
+- **Smoke test for `init` subcommand**.
+
+### Changed
+
+- README Quick Start now leads with `pip install -U "pwiki-cli[rag,serve]" && pwiki init` —
+  the recommended flow. The 5 manual subcommands moved to "Manual mode" appendix.
+
 ## [0.1.1] — 2026-04-27
 
 Patch release fixing two issues found during real-world dogfood verification.

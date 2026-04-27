@@ -33,7 +33,26 @@ git clone https://github.com/zxs1633079383/pwiki && cd pwiki && pip install -e .
 
 Requires Python 3.10+ and a folder you want to use as your Obsidian Vault (default: `~/Documents/Obsidian Vault`).
 
-## Quick Start (60 seconds)
+## Quick Start (one command)
+
+```bash
+cd ~/your-project
+pip install -U "pwiki-cli[rag,serve]"
+pwiki init                  # detects project + AI tools, writes per-tool instructions, bootstraps docs/wiki/
+```
+
+After `pwiki init`, **you should not need to type pwiki commands again**.
+Open Cursor / Claude Code / Codex / Gemini CLI in the project and say
+things like "sync the wiki", "今天的早报", "find my notes on X" — your AI
+reads the per-tool instructions file (`CLAUDE.md` / `AGENTS.md` /
+`.cursor/rules/pwiki.md` / `GEMINI.md` / `.clinerules`) and runs the right
+`pwiki <subcommand>` for you.
+
+If the AI doesn't have a `docs/wiki/` to sync, `pwiki init` bootstraps a
+scaffold + writes `docs/wiki/_llm-prompt.md` — paste that prompt into the
+AI to have it fill the wiki from your source code.
+
+## Manual mode (60 seconds, if you prefer to drive)
 
 ```bash
 # 1. Ingest a wiki/ directory into your Vault as repos/<name>/

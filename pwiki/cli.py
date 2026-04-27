@@ -8,6 +8,7 @@ from importlib import import_module
 from . import __version__
 
 SUBCOMMANDS = {
+    "init": ("pwiki.init", "first-time setup: detect project + AI tools, write per-tool instructions"),
     "sync": ("pwiki.sync", "ingest a generated wiki/ dir into your Obsidian Vault"),
     "aliases": ("pwiki.aliases", "add YAML aliases from index.md so wikilinks resolve"),
     "canvas": ("pwiki.canvas", "render the Vault as a multi-repo JSON Canvas"),
