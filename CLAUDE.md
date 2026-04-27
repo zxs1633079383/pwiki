@@ -124,15 +124,63 @@ is intentionally manual (run on `examples/sample-wiki/` + `/tmp/demo-vault/`).
 - ❌ Don't bump `version` in `pyproject.toml` without also tagging git + writing a `CHANGELOG.md` entry.
 - ❌ Don't change the GitHub URL away from `zxs1633079383/pwiki` — multiple files reference it; use `grep -rn` to verify.
 
-## Release flow
+## Release flow（自动 ship —— 不要每次问用户）
 
-OSS releases:
-1. Bump `version` in `pyproject.toml`
-2. Update `CHANGELOG.md`
-3. `git commit -m "release: 0.x.y"` + `git tag v0.x.y` + `git push --tags`
-4. `bash scripts/release.sh` → builds + uploads to PyPI (requires `~/.pypirc`)
+**硬性规则**：只要修改了 `pwiki/*.py` 或任何会进 PyPI 包的代码并且**验证通过**，
+就**主动**完成完整 release 流——不用每次问用户"要不要 push"。维护者已明确授权。
 
-See [`RELEASE.md`](RELEASE.md) for the first-time PyPI token setup.
+### 什么算"代码改动"（触发自动 ship）
+- `pwiki/**.py` 任何改动
+- `pyproject.toml` 依赖 / 元数据
+- `examples/setup-demo.sh` 之类用户会跑的脚本
+- 模板字符串（INSTRUCTIONS_TEMPLATE 等）
+
+### 什么**不**触发自动 ship（只 commit + push，不发 PyPI）
+- 仅 `README.md` / `README-zh.md` / `docs/**.md` / `CHANGELOG.md` 的文档改动
+- `.github/`、CI 配置
+- `tests/` 的纯测试改动（无生产代码）
+
+### "验证通过"的最低门槛
+1. **Smoke test 必须跑**：`~/.pwiki-venv/bin/pwiki init -y --no-first-run` 在
+   `/tmp/pwiki-smoke-<version>` 临时目录，输出**不能**包含
+   `_llm-prompt` / `LLM prompt` 等已知 stale 词，所有 5 个 AI 工具
+   instruction 文件都得 `created`。
+2. **真实环境冒烟**：在 `/Users/mac28/workspace/angular/cses-client` 跑一次
+   `pwiki init -y --no-first-run`，确认 scale 行格式正常、不再报已知数字 bug、
+   `<!-- pwiki:begin --> ... <!-- pwiki:end -->` 段更新成功（`grep` 关键 marker
+   关键词如 `源码锚点` / `400-800` 全部命中）。
+3. **测试套件**：`~/.pwiki-venv/bin/python -m pytest -q` 全绿（如果改动碰
+   了 `pwiki/init.py` 的逻辑而非纯打印文本）。
+
+任何一项没过 → **停下、报告维护者**，不要继续 ship。
+
+### 自动 ship 步骤（验证全过后无需问，按顺序自动执行）
+1. **Bump version**：`pwiki/__init__.py` 和 `pyproject.toml` 同步改 semver
+   （bug 修 → patch；新功能但兼容 → minor；破坏性 → major + 邮件通知）。
+2. **CHANGELOG.md**：在顶部追加新版本 entry，按现有格式（标题 + 故事段
+   + Added/Changed/Fixed 子段 + Why this matters）。**用中文写**。
+3. **Commit**：按 `~/.claude/rules/common/git-workflow.md` 的 Conventional
+   Commits 中文格式，type 选 `feat` / `fix` / `refactor` 等。Body 用中文
+   解释**为什么这么改**（reference 真实用户反馈、dogfood 翻车、issue 编号）。
+4. **Tag**：`git tag v0.x.y`。
+5. **Push**：`git push origin main --tags` 一条命令同时推 commit 和 tag。
+6. **Build + upload**：
+   ```
+   rm -rf dist build pwiki_cli.egg-info
+   ~/.pwiki-venv/bin/python -m build
+   ~/.pwiki-venv/bin/python -m twine upload dist/pwiki_cli-X.Y.Z*
+   ```
+   PyPI token 在 `~/.pypirc`，已配好；不会要密码。
+7. **报告**：用一张表给维护者复盘 ship 状态（PyPI URL / commit hash /
+   tag / 验证结果）。
+
+### 什么时候**不要**自动 ship（即使验证通过）
+- 维护者明确说"先别 push" / "先放着" / "等下" / "WIP"
+- 当前在 plan 模式或 dry-run 模式
+- 改动还包含未完成的 TODO / FIXME / `pass` 占位
+- 维护者刚说"先看看效果" → 等 demo 反馈再 ship
+
+### 第一次 PyPI token 配置见 [`RELEASE.md`](RELEASE.md)。
 
 ## Useful commands while iterating
 
