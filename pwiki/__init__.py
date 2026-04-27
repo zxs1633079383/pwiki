@@ -25,5 +25,5 @@ Karpathy's framing:
     "Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase."
 """
 
-__version__ = "0.3.4"
+__version__ = "0.3.5"
 __all__ = ["init", "sync", "aliases", "canvas", "brief", "evolution", "query", "serve"]

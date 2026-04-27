@@ -5,7 +5,33 @@ All notable changes to pwiki will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.4] — 2026-04-27
+## [0.3.5] — 2026-04-27
+
+The "AI agent 也要看到新行为" 补丁。0.3.4 给 `pwiki brief` 加了
+拒绝覆盖 + 时间戳 .bak 后，但 `pwiki init` 生成的 5 个 AI 工具
+instruction 文件（CLAUDE.md / AGENTS.md / GEMINI.md / .clinerules /
+.cursor/rules/pwiki.md）还在告诉 AI 无脑跑 `pwiki brief`——
+AI 不知道 exit 1 是预期，会以为出错。
+
+### Changed
+
+- `pwiki/init.py` 的 `INSTRUCTIONS_TEMPLATE`：
+  - 「今天的早报」表行后加注 `——见下方 brief safety note`。
+  - 新增独立行「重新生成今天的早报」`pwiki brief --force` —— 仅在
+    用户明确要求覆盖手填内容时使用。
+  - 新增 **Brief safety note (0.3.4+)** 子段，4 步流程告诉 AI：
+    exit 0 = 填新骨架；exit 1 + "refuse to overwrite" = 今天已填，
+    直接读，**禁止**自动 `--force`，除非用户显式说"重做"；`--force`
+    时旧文件已自动归档到 `.bak.<HHMMSS>`，可恢复。
+
+### Why this matters
+
+AI agent 与 CLI 的"行为契约"必须同步。0.3.4 改了 CLI 行为却没改
+agent 指令 = 升级后 agent 报错 → 用户以为 pwiki 坏了。0.3.5 之后
+任何装了新版 pwiki 的项目，重跑 `pwiki init` 后 AI 立刻认得
+exit 1 是"今天已填"信号，不会乱用 `--force` 覆盖手填内容。
+
+
 
 The "别把我手填的早报吞掉" 补丁。维护者今天踩坑：早上手填了
 `daily/2026-04-27.md` 的 §②③④（10 个前沿方向 / 深度商机 / 自我演进），

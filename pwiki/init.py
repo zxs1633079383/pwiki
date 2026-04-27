@@ -296,10 +296,28 @@ Chinese / mixed filename they actually live under.
 | "sync" / "同步 wiki" / after editing `docs/wiki/` | `pwiki sync ./docs/wiki {project_name}` |
 | "解析 wikilink" / `[[slug]]` 没连上 | `pwiki aliases {project_name}` |
 | "看图谱" / "canvas" / "knowledge graph" | `pwiki canvas` (open `Vault/canvas/all-repos.canvas` in Obsidian) |
-| "今天的早报" / "morning brief" | `pwiki brief` |
+| "今天的早报" / "morning brief" | `pwiki brief` —— 见下方 brief safety note |
+| "重新生成今天的早报" / "regenerate today's brief" | `pwiki brief --force` —— 仅在用户**明确**要求覆盖手填内容时用 |
 | "搜笔记" / "查 X" / "find my notes on Z" | `pwiki query --rag "<question>"` |
 | "本地启 web UI" | `pwiki serve --open` |
 | "周回顾" / "weekly evolution" | `pwiki evolution` |
+
+#### Brief safety note (0.3.4+)
+
+`pwiki brief` is **idempotent** the first time each day, but **refuses to
+overwrite** a daily that has been edited beyond the scaffold (no
+`1. ...` / `_待 LLM 填` / `## 素材区` sentinels remain). When this happens
+the CLI exits **1** with a message recommending `--force`. The expected
+flow:
+
+1. User says "今天的早报" → run `pwiki brief`.
+2. If exit 0 → read the new scaffold and fill §②③④ in place.
+3. If exit 1 with "refuse to overwrite" → today's daily is **already
+   filled**. Just read it; do NOT re-run with `--force` unless the user
+   explicitly asks to regenerate (e.g. "scrap today's brief and redo it").
+4. When `--force` is invoked, the prior daily is auto-archived to
+   `daily/<today>.md.bak.<HHMMSS>` (timestamped, never clobbered), so the
+   user's hand-edits are always recoverable from that file.
 
 ### Bootstrap protocol (empty `docs/wiki/`, first time)
 
