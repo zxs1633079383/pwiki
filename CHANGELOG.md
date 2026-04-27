@@ -5,7 +5,37 @@ All notable changes to pwiki will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.3] — 2026-04-27
+## [0.3.4] — 2026-04-27
+
+The "别把我手填的早报吞掉" 补丁。维护者今天踩坑：早上手填了
+`daily/2026-04-27.md` 的 §②③④（10 个前沿方向 / 深度商机 / 自我演进），
+后来在 `cses-client` 目录测试 `pwiki brief` 想看 CLI 是否随 cwd 工作——
+`brief.py` 二话不说覆盖了 `.md`，**`.bak` 又把上一次的 `.bak` 抹了**，
+手填的内容只能从对话记忆里重新打回去。
+
+### Added
+
+- **填充检测**：`pwiki/brief.py` 新增 `looks_like_scaffold()` 与
+  `SCAFFOLD_MARKERS = ("1. ...\\n2. ...", "**主题：** ...", "_待 LLM 填", "## 素材区")`
+  四个哨兵，只要存在任意一个就视为骨架，否则视为已编辑。
+- **`pwiki brief --force`**：当 `daily/<today>.md` 已脱离骨架时，默认拒绝
+  覆盖并 `exit 1`，错误信息含具体修复指引；`--force` 显式声明覆盖意图。
+- **时间戳备份**：`rotate_backup()` 把旧 `.md` 写到
+  `daily/<today>.md.bak.<HHMMSS>`（同秒内重跑追加 `-1`/`-2` 等后缀），
+  不再只有一个 `.bak` 槽位。
+- **回归测试**：`tests/test_smoke.py` 新增 4 条
+  （`--force` flag / `looks_like_scaffold` 真假分支 / `rotate_backup` 不
+  覆写已有备份 / 同秒重跑唯一性），pytest 14 → 全绿 0.45s。
+
+### Why this matters
+
+OSS CLI 的"幂等"和"无副作用"是底线之二。0.3.3 的 `pwiki brief`：
+1) 默认覆盖 daily 不问；2) 单槽 `.bak` 同名覆盖。这两条叠在一起 = 用户
+手填半小时的早报被一条命令静默吞掉，且无任何文件系统恢复路径。0.3.4
+之后：填好的早报需要 `--force` 才会被覆盖，且每次覆盖都按时间戳归档，
+重跑多少次都能找到任意一次旧版本。
+
+
 
 The "stop polluting people's projects" patch. Real-user feedback：
 "我本地没有 codex 还给我生成了 AGENTS.md 什么的"——`pwiki init` 之前

@@ -83,3 +83,38 @@ def test_imports() -> None:
     from pwiki import init, sync, aliases, canvas, brief, evolution, query  # noqa: F401
 
     assert pwiki.__version__
+
+
+def test_brief_help_advertises_force_flag() -> None:
+    """Regression: 0.3.4 added --force to override the filled-detection refuse."""
+    r = _run_pwiki("brief", "--help")
+    assert r.returncode == 0
+    assert "--force" in r.stdout
+
+
+def test_looks_like_scaffold_detects_placeholders() -> None:
+    """A fresh scaffold has at least one of the SCAFFOLD_MARKERS sentinels."""
+    from pwiki.brief import looks_like_scaffold
+
+    fresh = "## §②\n1. ...\n2. ...\n3. ...\n## §④\n_待 LLM 填..._\n"
+    assert looks_like_scaffold(fresh)
+
+    filled = "## §②\n1. **PR Review Bot 商业化**\n2. **pwiki Hosted**\n## §④\nInversion 优先...\n"
+    assert not looks_like_scaffold(filled)
+
+
+def test_rotate_backup_creates_timestamped_copy(tmp_path) -> None:
+    """rotate_backup must NOT clobber an existing .bak (the 0.3.3 regression)."""
+    from pwiki.brief import rotate_backup
+
+    daily = tmp_path / "2026-04-27.md"
+    daily.write_text("filled content", encoding="utf-8")
+    bak = rotate_backup(daily)
+    assert bak.exists()
+    assert bak.read_text(encoding="utf-8") == "filled content"
+    assert ".bak." in bak.name  # timestamped, not bare .bak
+
+    # A second call within the same second must still produce a unique file.
+    bak2 = rotate_backup(daily)
+    assert bak2.exists()
+    assert bak2 != bak

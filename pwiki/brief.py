@@ -186,12 +186,44 @@ def render(today: dt.date, due_list, signals, template: str,
     return body.rstrip() + "\n" + "\n".join(materials) + "\n"
 
 
+# Sentinels written by render() into a fresh scaffold. If NONE of these are
+# present in an existing daily, the file has been hand-edited and must not be
+# overwritten without --force.
+SCAFFOLD_MARKERS = (
+    "1. ...\n2. ...",                # §② placeholder block
+    "**主题：** ...",                # §③ placeholder
+    "_待 LLM 填",                    # §④ placeholder
+    "## 素材区",                     # bottom block dropped after fill
+)
+
+
+def looks_like_scaffold(text: str) -> bool:
+    """A daily is still 'scaffold' iff at least one sentinel survives."""
+    return any(marker in text for marker in SCAFFOLD_MARKERS)
+
+
+def rotate_backup(daily_path: pathlib.Path) -> pathlib.Path:
+    """Write existing .md to .md.bak.<HHMMSS> so prior backups survive."""
+    stamp = dt.datetime.now().strftime("%H%M%S")
+    bak = daily_path.with_suffix(f".md.bak.{stamp}")
+    # Avoid clobber on rapid reruns within the same second.
+    n = 1
+    while bak.exists():
+        bak = daily_path.with_suffix(f".md.bak.{stamp}-{n}")
+        n += 1
+    bak.write_text(daily_path.read_text(encoding="utf-8"), encoding="utf-8")
+    return bak
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--vault", default=str(DEFAULT_VAULT))
     ap.add_argument("--repos-root", action="append", default=None,
                     help="repeatable; defaults to ~/workspace")
     ap.add_argument("--lookback-days", type=int, default=7)
+    ap.add_argument("--force", action="store_true",
+                    help="overwrite today's daily even if it has been edited "
+                         "beyond the scaffold (otherwise refused)")
     args = ap.parse_args()
 
     vault = pathlib.Path(args.vault).expanduser().resolve()
@@ -216,8 +248,15 @@ def main():
     daily_path = vault / "daily" / f"{today.isoformat()}.md"
     daily_path.parent.mkdir(parents=True, exist_ok=True)
     if daily_path.exists():
-        bak = daily_path.with_suffix(".md.bak")
-        bak.write_text(daily_path.read_text(encoding="utf-8"), encoding="utf-8")
+        existing = daily_path.read_text(encoding="utf-8")
+        if not looks_like_scaffold(existing) and not args.force:
+            sys.exit(
+                f"refuse to overwrite {daily_path.name}: it has been edited "
+                f"beyond the scaffold (no scaffold sentinels found).\n"
+                f"  pass --force to overwrite anyway. The current file will "
+                f"still be backed up to .md.bak.<HHMMSS> before the rewrite."
+            )
+        bak = rotate_backup(daily_path)
         print(f"==> existing daily backed up to {bak.name}", file=sys.stderr)
 
     out = render(today, due_list, signals, template, weekday_zh, quadrant)
