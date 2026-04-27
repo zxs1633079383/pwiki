@@ -1,99 +1,102 @@
 # pwiki Launch Tweet — Thread (English)
 
-> **v3 — 2026-04-27, post 0.3.0 ship.** Reflects the real differentiator:
-> AI auto-fills the wiki from code; user types one phrase.
-> 6 main thread + 1 reply（links in reply to avoid algorithm hit）.
+> **v4 — 2026-04-27, post 0.3.1 ship.** Hook upgraded from feature-list ("AI auto-fills wiki") to
+> reverse-narrative ("shipped 0.3.0 → real-user dogfood embarrassed me → 0.3.1 fixes it").
+> Dev Twitter rewards honest post-mortem hooks ~3× the engagement of feature-list hooks.
+> 6 main thread + 1 reply (links in reply to avoid algorithm hit).
 
-## 主推荐 Hook（A v3 — post-0.3.0）
+## 主推荐 Hook（A v4 — post-0.3.1 reverse hook）
 
 ```
 1/
 
-30 days ago Karpathy posted his LLM Wiki gist.
-6 open-source implementations followed.
+Shipped pwiki 0.3.0 last week. You say "fill the wiki", your AI writes the pages.
 
-None of them auto-fill the wiki from your code.
-You still write every markdown page by hand.
+Ran it on a 50K LOC Angular+Tauri repo. It wrote 8 stubs.
 
-I shipped `pwiki` 0.3.0. It embeds Karpathy's full pattern (3 layers / 6 page types / 8-step protocol) into your CLAUDE.md.
+That codebase needs 25-30 deep pages. My bootstrap protocol said "5-15", so the AI took the lazy read.
 
-You say "fill the wiki" — your AI writes 8 pages and runs sync, in 60 seconds.
+0.3.1 fixes it.
 
 🧵
 ```
 
-**字符数**：~246 (含换行，<280 ✓)
-**v1 → v2 改动**：
-- "dropped" → "posted" (passive "drop" 在 dev 圈被滥用)
-- 加 "have shipped since" 体现"已经发生"的时态
-- 加 **"But every single one still makes you…"** 反转节奏
-- "I built" → "So I shipped" + 收尾 "That's the entire delta"（dev 高密度词）
+**Char count**: ~265 (含换行，<280 ✓)
+**v3 → v4 改动**：
+- 抛弃 "30 days ago Karpathy posted…" 这种 history-recap 开头 — 已经被 6 个项目用烂
+- 改用 **reverse hook**：承认 0.3.0 翻车 → 引出 0.3.1 修复 — dev 圈最吃这种诚实复盘叙事
+- 加入 **具体反差数字**：50K LOC / 8 stubs / 25-30 deep pages — 可信度锚点 + 好奇缺口
+- "took the lazy read" — dev 高密度词，能瞬间识别
 
 ---
 
-## Thread 完整 7 条（润后 v2，搭配主 Hook A v2）
+## Thread 完整 6 条（v4）
 
-### Tweet 2 — How `pwiki init` works
+### Tweet 2 — What 0.3.1 changed
 ```
 2/
 
-`pwiki init` does 3 things:
+Three forced upgrades inside the AI's instruction file:
 
-1. detects 5 AI agent dotfiles in your project (CLAUDE.md / AGENTS.md / GEMINI.md / .clinerules / .cursor/rules) and writes per-tool instructions
-2. injects Karpathy's full LLM Wiki Schema — 6 page types, 8-step bootstrap, 5-category lint — inside <!-- pwiki:begin --> markers (your existing content untouched)
-3. bootstraps docs/wiki/ scaffold
+1. Scale awareness — `pwiki init` counts LOC and recommends a page range: <2K → 5-8 / 2K-10K → 10-15 / 10K-50K → 20-30 / 50K+ → 35-50
 
-Marker pair = re-running init updates in place, never clobbers.
+2. Mandatory 6-section page structure (TL;DR + source-anchor table + Q&A + cross-refs)
+
+3. Citation density: ≥3 src-path citations per page, with line numbers
+
+Pages missing any of the 6 sections are rejected output.
 ```
 
-### Tweet 3 — Verified on a real Angular+Tauri repo
+### Tweet 3 — Before / after on the same repo
 ```
 3/
 
-Just ran it on cses-client (4205-line ARCHITECTURE.md, Angular 20 + Tauri 2):
+cses-client (same Angular+Tauri repo), 0.3.0 vs 0.3.1:
 
-→ 8 wiki pages distilled (5 entities / 1 concept / 1 operation / 1 comparison)
-→ 38 internal cross-page edges (every [[wikilink]] resolved through aliases)
-→ 168 edges across 4 repos in the global canvas
-→ Every claim cites a real `src-tauri/...` or `src/...` path
-→ ~60 seconds end-to-end, zero hand-typed CLI commands after `pwiki init`
+Before: 8 pages, 200-400 words each. No source anchors. No Q&A. Pure paraphrase of the README.
+
+After: scale signal says 35-50 pages. Each page has TL;DR + ≥3 `src-tauri/*` citations with line numbers + ≥2 edge-case Q&A + ≥2 cross-references.
+
+The wiki finally answers what the source can't quickly answer itself.
 ```
 
-### Tweet 4 — Why nobody else does this
+### Tweet 4 — Why this matters
 ```
 4/
 
-The 6 existing implementations all stop at "here's a Claude skill, copy-paste this prompt".
+The wiki layer is only valuable if it answers questions the source code itself can't quickly answer.
 
-You still drive every page generation by hand.
+Stub pages that just rename file paths add zero value.
 
-pwiki 0.3.0 puts the *full Schema* into your AI tool's loaded context — Three-Layer Architecture, 6 page types, immutability rules, citation requirements, quality bar.
+Deep pages with source anchors + tradeoff Q&A turn the wiki into something a new hire can actually use to land a PR.
 
-Your AI doesn't read an external prompt. It already knows.
+0.3.1 makes the AI default to deep, not shallow.
 ```
 
 ### Tweet 5 — Karpathy callback
 ```
 5/
 
-Karpathy framed it best:
+Karpathy's original framing still holds:
 
 "Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase."
 
-The pattern is his. The packaging is mine.
+But code review applies to wiki pages too. 0.3.1 is the linter that says "no source anchors — rejected".
 
-MIT-licensed. v0.1.1 — early but dogfood-tested on 33 real notes. Issues welcome.
+Pattern is his. Packaging + the quality bar is mine.
+
+MIT-licensed, on PyPI. Issues welcome.
 ```
 
 ### Tweet 6 — CTA（双轨）
 ```
 6/
 
-What would you ferry into your Vault first?
+Got a 10K+ LOC repo with thin or no docs?
 
-Reply with the messiest docs/wiki/ folder you've got — I'll show you what pwiki produces on it.
+Reply with the repo URL — I'll run pwiki 0.3.1 on it and post what comes out.
 
-Or just star the repo and try it later when you have a vault to feed it.
+Or just `pip install -U pwiki-cli && pwiki init` — it'll tell you exactly how many pages your codebase needs.
 
 Repo + Karpathy's gist in the first reply ↓
 ```
@@ -109,17 +112,18 @@ Karpathy's original gist: https://gist.github.com/karpathy/442a6bf555914893e9891
 
 ---
 
-## 备选 Hooks（如果 A v2 24h 表现 < 50 likes，换其中一个重发）
+## 备选 Hooks（如果 A v4 24h < 50 likes，换其中一个重发）
 
-### 备选 Hook A v1（原版）
+### 备选 Hook A v3（post-0.3.0 — 上一版主 hook，备用）
 ```
-Karpathy dropped his "LLM Wiki" gist 30 days ago.
-
+30 days ago Karpathy posted his LLM Wiki gist.
 6 open-source implementations followed.
 
-Every single one needs you to clone, configure paths, and read a 50-line tutorial.
+None of them auto-fill the wiki from your code. You still write every markdown page by hand.
 
-I built `pwiki` so you can pip install it instead.
+I shipped `pwiki` 0.3.1. It embeds Karpathy's full pattern (3 layers / 6 page types / 9-step protocol) into your CLAUDE.md.
+
+You say "fill the wiki" — your AI writes the pages and runs sync.
 
 🧵
 ```
@@ -131,8 +135,8 @@ Your messy docs/wiki/ folder + Obsidian + Claude Code = a self-maintaining knowl
 I packaged Karpathy's LLM Wiki pattern as a CLI:
 
   pip install -U pwiki-cli
-  pwiki sync ./repo/wiki repo
-  pwiki canvas
+  pwiki init       # writes the schema into your CLAUDE.md
+  # then say "fill the wiki" to your AI
 
 30 days after the gist. 🧵
 ```
@@ -141,24 +145,42 @@ I packaged Karpathy's LLM Wiki pattern as a CLI:
 ```
 Everyone is building RAG.
 
-Karpathy's 200-line "LLM Wiki" gist suggests the opposite: compile your knowledge into structured markdown ahead of time, let the LLM navigate it.
+Karpathy's 200-line "LLM Wiki" gist suggests the opposite: compile your knowledge into structured markdown ahead of time, let the LLM navigate it like a codebase.
 
-It's better for personal KBs. I shipped a CLI tonight.
+It's better for personal KBs. I shipped a CLI that does it.
+
+🧵 ↓
+```
+
+### 备选 Hook D（极简反差型 — 新增）
+```
+The AI wrote 8 wiki pages for a 50K LOC codebase.
+
+It needed 25-30.
+
+Turns out my own AI-instruction file said "5-15 pages" and the AI took the lazy read.
+
+pwiki 0.3.1 makes the page-count scale with the codebase, and forces a 6-section structure on every page.
 
 🧵 ↓
 ```
 
 ---
 
-## 质量自检（按 quality-analytics.md 清单）
+## 质量自检（按 quality-analytics.md 清单 — v4）
 
 | 维度 | 检查 | 评分 |
 |---|---|---|
-| **算法层** | 主 thread 0 外链（放 reply）；0 hashtag；含媒体（GIF 在第 1 条） | ✅ |
-| **Hook 层** | 可信度锚点（Karpathy）+ 数字（30/6）+ **反转**（But…still…）+ 价值 + dev 高密度词（"delta"） | **9/10** ↑ |
-| **内容层** | 1/3/1 节奏（功能→数据→差异→致敬→CTA）；每条推进；Rate of Revelation 在 Tweet 3 数字爆点 | ✅ |
-| **CTA 层** | **双轨**（高门槛 reply 文件夹 + 低门槛 star repo）；具体行动召唤 | ✅ |
-| **品牌叙事** | 致敬 Karpathy 不抢功劳；明确"pattern 是他的，packaging 是我的" | ✅ |
+| **算法层** | 主 thread 0 外链（放 reply）；0 hashtag；含 GIF/媒体 | ✅ |
+| **Hook 层** | 反承认开头（dev 圈最吃这种）+ 具体数字（50K / 8 / 25-30）+ 好奇缺口（"lazy read"）+ dev 高密度词（ship / dogfood / lazy read） | **9.5/10** ↑ |
+| **内容层** | 1/3/1 节奏（翻车→修法→对比→为什么→致敬→CTA）；Rate of Revelation 在 Tweet 3 数字爆点 | ✅ |
+| **CTA 层** | 双轨（高门槛 reply repo URL + 低门槛 pip install） | ✅ |
+| **品牌叙事** | 致敬 Karpathy 不抢功劳；"pattern 是他的，质量门槛是我的"——比 v3 更明确自己的增量 | ✅ |
+| **诚实度** | 公开承认 0.3.0 不够好 → 提升信任度（"我不卖 demo，我修翻车"） | **新增维度 ✅** |
+
+**v3 → v4 评分对比**：
+- Hook 9 → 9.5（反承认 + 数字爆点 + dev 词密度全部上来了）
+- 诚实度从隐式变显式 — dev 圈最大的信任货币
 
 ## 发帖时间建议
 
@@ -176,16 +198,18 @@ It's better for personal KBs. I shipped a CLI tonight.
 
 - [x] demo.gif 已 commit 进 repo（`docs/demo.gif`，348KB）
 - [x] GitHub repo 已 public（github.com/zxs1633079383/pwiki）
-- [x] PyPI 已上线（pwiki-cli 0.1.0）
+- [x] PyPI 已上线（pwiki-cli **0.3.1**）
+- [x] CHANGELOG 0.3.1 entry written ("stop writing stubs")
 - [x] README 卖货级 + Karpathy quote + Quick Start
 - [x] LICENSE = MIT
-- [ ] CI 跑通（GitHub Actions 首次 run，push 后看）
+- [x] CI 跑通（GitHub Actions Python 3.10–3.13 全绿）
+- [x] tag v0.3.1 已推 origin
 - [ ] 发完 Twitter pin 主 thread
 
 ## 发布后跟帖策略（24h）
 
 - **不要**主动 @karpathy。让他自然刷到。**只有 24h 内 ≥100 likes** 时才在自己的回复里 @ 他（"FWIW @karpathy this is built on your gist."）
 - 发布 24h 后看数据：
-  - ≥100 likes / ≥10 RT → 写个"What I learned shipping pwiki" 复盘 thread 引第二波
-  - <30 likes / <5 RT → **不要再发同一 hook**，换 B 或 C 的 hook 重写发新 thread
-- 周末扩散：HN ShowHN（重写文案）+ r/ObsidianMD + r/LocalLLaMA（每个重写）
+  - ≥100 likes / ≥10 RT → 写"What I learned shipping 0.3.1 — three failure modes the AI defaults to" 复盘 thread 引第二波
+  - <30 likes / <5 RT → **不要再发同一 hook**，换 B / C / D 的 hook 重写发新 thread
+- 周末扩散：HN ShowHN（重写文案，hook 改成"Show HN: pwiki — the linter that rejects shallow wiki pages"）+ r/ObsidianMD + r/LocalLLaMA（每个重写）
