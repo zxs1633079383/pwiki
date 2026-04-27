@@ -33,24 +33,30 @@ git clone https://github.com/zxs1633079383/pwiki && cd pwiki && pip install -e .
 
 Requires Python 3.10+ and a folder you want to use as your Obsidian Vault (default: `~/Documents/Obsidian Vault`).
 
-## Quick Start (one command)
+## Quick Start (one command + one phrase)
 
 ```bash
 cd ~/your-project
 pip install -U "pwiki-cli[rag,serve]"
-pwiki init                  # detects project + AI tools, writes per-tool instructions, bootstraps docs/wiki/
+pwiki init                  # 1. detects project + AI tools
+                            # 2. writes Karpathy's full LLM Wiki pattern into
+                            #    CLAUDE.md / AGENTS.md / .cursor/rules / GEMINI.md / .clinerules
+                            # 3. bootstraps docs/wiki/ scaffold
 ```
 
-After `pwiki init`, **you should not need to type pwiki commands again**.
-Open Cursor / Claude Code / Codex / Gemini CLI in the project and say
-things like "sync the wiki", "今天的早报", "find my notes on X" — your AI
-reads the per-tool instructions file (`CLAUDE.md` / `AGENTS.md` /
-`.cursor/rules/pwiki.md` / `GEMINI.md` / `.clinerules`) and runs the right
-`pwiki <subcommand>` for you.
+Now open Cursor / Claude Code / Codex / Gemini CLI in your project and **say**:
 
-If the AI doesn't have a `docs/wiki/` to sync, `pwiki init` bootstraps a
-scaffold + writes `docs/wiki/_llm-prompt.md` — paste that prompt into the
-AI to have it fill the wiki from your source code.
+> "fill the wiki" / "帮我填 wiki" / "scan my code and write the wiki"
+
+Your AI already has the full protocol in its loaded instructions: 6 page
+types (Entity / Concept / Operation / Comparison / Synthesis / Summary),
+8-step bootstrap, citation rules, quality bar. It reads your README + source
+tree, writes 5-15 pages, runs `pwiki sync` + `pwiki aliases` + `pwiki canvas`,
+and reports back. You don't type any other pwiki commands.
+
+**Real example** — Angular 20 + Tauri 2 desktop client, 4205-line ARCHITECTURE.md:
+8 wiki pages distilled, 38 cross-page links, full canvas in `~60 seconds`,
+zero hand-typed CLI commands after `pwiki init`.
 
 ## Manual mode (60 seconds, if you prefer to drive)
 
@@ -154,9 +160,10 @@ Architecture details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Roadmap
 
-- ✅ **0.1**: Five-command CLI, JSON Canvas, Ebbinghaus, weekly evolution.
-- ✅ **0.2**: alias-extraction Pass 4 covers English-named files (`--dict` for custom mappings); `pwiki query "<text>"` (grep) + `pwiki query --rag` (local fastembed semantic search, multilingual MiniLM, ~120MB ONNX).
-- ✅ **0.3**: `pwiki serve` — local web UI with D3 Canvas viewer, wikilink-aware markdown rendering, inline search (grep + RAG toggle).
+- ✅ **0.1**: 5 命令 CLI + JSON Canvas + Ebbinghaus + 周度演进
+- ✅ **0.2**: alias Pass 4 支持英文文件名 + `pwiki query` (grep / RAG via fastembed multilingual MiniLM)
+- ✅ **0.3.0**: `pwiki init` — embeds Karpathy's full LLM Wiki pattern (3 layers / 3 operations / 6 page types / 8-step bootstrap / 7-step ingest / 5-category lint) into every AI tool's instruction file. AI auto-fills the wiki from your code; you say one phrase.
+- ✅ **0.3** (also): `pwiki serve` — local web UI with D3 Canvas viewer + inline grep/RAG search.
 - 🟡 **0.4** (hosted, not started): one-click LiveSync-as-a-service so multi-device sync stops being a CouchDB project. Spec: [`docs/0.4-hosted-spec.md`](docs/0.4-hosted-spec.md). Implementation gated on ⭐ ≥ 300 (premature SaaS without traction is a known anti-pattern).
 
 ## Pricing (Freemium)

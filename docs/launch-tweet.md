@@ -1,21 +1,23 @@
 # pwiki Launch Tweet — Thread (English)
 
-> **v2 — 2026-04-27 polish via /x-mentor.** This is the canonical version.
-> 6 主 thread + 1 reply（links 在 reply 防降权）。
-> Hook 公式：可信度锚点（Karpathy）+ 数字（30 天 / 6 仓）+ **反转**（"But every single one still…"）+ 价值（pip install）。
+> **v3 — 2026-04-27, post 0.3.0 ship.** Reflects the real differentiator:
+> AI auto-fills the wiki from code; user types one phrase.
+> 6 main thread + 1 reply（links in reply to avoid algorithm hit）.
 
-## 主推荐 Hook（A v2 — 润后）
+## 主推荐 Hook（A v3 — post-0.3.0）
 
 ```
 1/
 
-30 days ago, Karpathy posted his LLM Wiki gist.
+30 days ago Karpathy posted his LLM Wiki gist.
+6 open-source implementations followed.
 
-6 open-source implementations have shipped since.
+None of them auto-fill the wiki from your code.
+You still write every markdown page by hand.
 
-But every single one still makes you clone the repo, configure paths, and read a 50-line tutorial first.
+I shipped `pwiki` 0.3.0. It embeds Karpathy's full pattern (3 layers / 6 page types / 8-step protocol) into your CLAUDE.md.
 
-So I shipped `pwiki` — pip install + 5 commands. That's the entire delta.
+You say "fill the wiki" — your AI writes 8 pages and runs sync, in 60 seconds.
 
 🧵
 ```
@@ -31,42 +33,43 @@ So I shipped `pwiki` — pip install + 5 commands. That's the entire delta.
 
 ## Thread 完整 7 条（润后 v2，搭配主 Hook A v2）
 
-### Tweet 2 — What it does
+### Tweet 2 — How `pwiki init` works
 ```
 2/
 
-Five subcommands. Each does one thing. Compose them.
+`pwiki init` does 3 things:
 
-  pwiki sync       wiki/ → your Vault, with frontmatter
-  pwiki aliases    [[english-slugs]] ↔ Chinese-named files
-  pwiki canvas     a JSON Canvas across every repo
-  pwiki brief      morning brief: review queue + cross-repo signals
-  pwiki query      local semantic search (multilingual, offline)
+1. detects 5 AI agent dotfiles in your project (CLAUDE.md / AGENTS.md / GEMINI.md / .clinerules / .cursor/rules) and writes per-tool instructions
+2. injects Karpathy's full LLM Wiki Schema — 6 page types, 8-step bootstrap, 5-category lint — inside <!-- pwiki:begin --> markers (your existing content untouched)
+3. bootstraps docs/wiki/ scaffold
+
+Marker pair = re-running init updates in place, never clobbers.
 ```
 
-### Tweet 3 — Verified data (Demo GIF 上传到第 1 条，这条只列数字)
+### Tweet 3 — Verified on a real Angular+Tauri repo
 ```
 3/
 
-Verified end-to-end on my own 33-note vault:
+Just ran it on cses-client (4205-line ARCHITECTURE.md, Angular 20 + Tauri 2):
 
-→ 130 cross-repo wikilink edges (resolved through an EN→ZH token dict)
-→ 235 chunks indexed locally for RAG via fastembed (multilingual MiniLM, 120MB ONNX, no API key)
-→ 4-section daily brief, weekday-aware quadrant rotation
-→ 60 seconds from `pip install` to a running canvas
+→ 8 wiki pages distilled (5 entities / 1 concept / 1 operation / 1 comparison)
+→ 38 internal cross-page edges (every [[wikilink]] resolved through aliases)
+→ 168 edges across 4 repos in the global canvas
+→ Every claim cites a real `src-tauri/...` or `src/...` path
+→ ~60 seconds end-to-end, zero hand-typed CLI commands after `pwiki init`
 ```
 
-### Tweet 4 — Why not the others
+### Tweet 4 — Why nobody else does this
 ```
 4/
 
-Why not the 6 existing implementations?
+The 6 existing implementations all stop at "here's a Claude skill, copy-paste this prompt".
 
-They're great patterns. But each makes you clone, configure, copy-paste the gist into Claude Code.
+You still drive every page generation by hand.
 
-pwiki is one pip install and 5 orthogonal commands.
+pwiki 0.3.0 puts the *full Schema* into your AI tool's loaded context — Three-Layer Architecture, 6 page types, immutability rules, citation requirements, quality bar.
 
-That's the only thing I claim. No more, no less.
+Your AI doesn't read an external prompt. It already knows.
 ```
 
 ### Tweet 5 — Karpathy callback
@@ -97,9 +100,10 @@ Repo + Karpathy's gist in the first reply ↓
 
 ### First Reply（链接放这里 — 算法友好）
 ```
-pip install -U pwiki-cli
+pip install -U pwiki-cli && pwiki init
 
 Repo: github.com/zxs1633079383/pwiki
+PyPI: pypi.org/project/pwiki-cli/
 Karpathy's original gist: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 ```
 
