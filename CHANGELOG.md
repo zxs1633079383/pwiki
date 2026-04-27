@@ -5,6 +5,66 @@ All notable changes to pwiki will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — 2026-04-27
+
+The "stop writing stubs" release. Real-user dogfood on a 50K+ LOC
+Angular+Tauri project (cses-client) showed AI agents writing 8 thin pages
+when they should have written 25-30 deep pages. Root cause: the Bootstrap
+protocol said "5-15 pages" with no project-scale awareness, no required
+page structure, and no citation density target. AI agents took the
+permissive read.
+
+### Added
+
+- **Project scale awareness in `pwiki init`** — counts LOC across common
+  code extensions, top-level modules, and detects `ARCHITECTURE.md` /
+  `CONVENTIONS.md` / `DESIGN.md` style docs. Recommends page count based
+  on scale:
+  - <2K LOC → 5-8 pages
+  - 2K-10K → 10-15
+  - 10K-50K → **20-30** (cses-client / GitNexus class)
+  - 50K+ → 35-50
+
+- **Mandatory per-page structure** in INSTRUCTIONS_TEMPLATE Bootstrap
+  protocol. Every leaf .md must now contain (no skipping):
+  1. Frontmatter line with `Confidence:` + `Sources:` + `关联:`
+  2. `## TL;DR` (1-2 sentences)
+  3. ≥2 content sections (architecture / mechanism / data flow / etc.)
+  4. **`## 源码锚点（Source Anchors）` table** with ≥3 rows
+     `<file:line> | <description>`
+  5. **`## 常见问题 / 边缘情况`** with ≥2 Q&A pairs
+  6. **`## 与其他页的关联`** with ≥2 [[wikilink]] cross-references
+
+  Pages without all six sections are explicitly rejected output.
+
+- **Citation density target**: ≥3 source-path citations per page,
+  with line numbers when feasible (`src/foo.ts:123`, `src/bar.ts:56-89`,
+  or `ARCHITECTURE.md (§1.2 能力清单)`).
+
+- **Page length target**: 400-800 words (was 200-600). 200-word stubs are
+  insufficient for 20K+ LOC projects.
+
+- **`init` output now reports scale** + recommended page count + detected
+  arch docs, so the user immediately knows what to expect.
+
+### Changed
+
+- Bootstrap protocol expanded from 8 brief steps to 9 detailed steps
+  (~150 lines → ~250 lines), each with explicit acceptance criteria.
+- Quality bar upgraded from "10 minutes for a stranger to understand" to
+  "a smart new hire could land a PR after reading these N pages".
+- Step 6 (索引.md) now requires a `## 还没写的（Roadmap pages）` section
+  listing items considered but deferred — the contract for the next
+  ingest session.
+
+### Why this matters
+
+The wiki layer is only useful if it answers questions the source code
+itself cannot quickly answer. Stub pages that just rename file paths add
+zero value; deep pages with source anchors + tradeoff Q&A turn the wiki
+into a reference a contributor can actually use to land a PR. 0.3.1 makes
+the AI agent default to deep, not shallow.
+
 ## [0.3.0] — 2026-04-27
 
 The "no separate prompt file" release. User feedback: writing

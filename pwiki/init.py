@@ -31,9 +31,85 @@ DEFAULT_VAULT = pathlib.Path.home() / "Documents" / "Obsidian Vault"
 
 # ─────────────────────────────────────── detection
 
+CODE_EXTENSIONS = {
+    ".py", ".ts", ".tsx", ".js", ".jsx", ".rs", ".go", ".java", ".kt",
+    ".swift", ".cpp", ".cc", ".c", ".h", ".hpp", ".cs", ".rb", ".php",
+    ".scala", ".vue", ".svelte", ".m", ".mm", ".dart", ".ex", ".exs",
+}
+SKIP_DIRS = {
+    "node_modules", "target", "dist", "build", ".git", ".venv", "venv",
+    "__pycache__", ".next", ".nuxt", "out", "vendor", ".pwiki", ".idea",
+    ".vscode", "coverage", ".pytest_cache", ".mypy_cache", "site-packages",
+}
+
+
+def count_loc(cwd: pathlib.Path, max_files: int = 5000) -> int:
+    """Best-effort LOC count across common code extensions. Capped to avoid
+    pathological repos. Returns total physical lines (including blanks/comments)."""
+    total = 0
+    seen = 0
+    for p in cwd.rglob("*"):
+        if seen >= max_files:
+            break
+        if not p.is_file():
+            continue
+        if any(part in SKIP_DIRS or part.startswith(".") for part in p.relative_to(cwd).parts[:-1]):
+            continue
+        if p.suffix.lower() not in CODE_EXTENSIONS:
+            continue
+        seen += 1
+        try:
+            with open(p, "rb") as fp:
+                total += sum(1 for _ in fp)
+        except Exception:
+            pass
+    return total
+
+
+def count_top_modules(cwd: pathlib.Path) -> int:
+    """Count top-level dirs under common source roots."""
+    n = 0
+    for cand in ("src", "src-tauri/src", "lib", "app", "cmd",
+                 "internal", "packages", "apps"):
+        p = cwd / cand
+        if p.is_dir():
+            n += sum(1 for c in p.iterdir() if c.is_dir() and c.name not in SKIP_DIRS)
+    return n
+
+
+def recommend_pages(loc: int) -> tuple[str, int]:
+    """(range_label, target_count) for the page-count recommendation."""
+    if loc < 2_000:   return ("5-8", 6)
+    if loc < 10_000:  return ("10-15", 12)
+    if loc < 50_000:  return ("20-30", 25)
+    return ("35-50", 40)
+
+
+def find_arch_docs(cwd: pathlib.Path) -> list[pathlib.Path]:
+    """Find ARCHITECTURE.md / CONVENTIONS.md / DESIGN.md style files at root or under docs/."""
+    out = []
+    patterns = ("ARCHITECTURE.md", "CONVENTIONS.md", "DESIGN.md", "PLAN.md",
+                "DECISIONS.md", "ARCH.md")
+    for pat in patterns:
+        for hit in list(cwd.glob(pat)) + list(cwd.glob(f"docs/{pat}")) + \
+                   list(cwd.glob(f"src-tauri/{pat}")) + list(cwd.glob(f"docs/**/{pat}")):
+            if hit.is_file():
+                out.append(hit)
+    # dedupe
+    seen, uniq = set(), []
+    for p in out:
+        if p in seen:
+            continue
+        seen.add(p)
+        uniq.append(p)
+    return uniq
+
+
 def detect_project(cwd: pathlib.Path) -> dict:
     info = {"path": str(cwd), "lang": "unknown", "name": cwd.name,
-            "is_git": (cwd / ".git").is_dir(), "wiki_dir": None}
+            "is_git": (cwd / ".git").is_dir(), "wiki_dir": None,
+            "loc": 0, "n_modules": 0, "page_range": "5-8", "page_target": 6,
+            "arch_docs": []}
     if (cwd / "pyproject.toml").is_file() or (cwd / "setup.py").is_file():
         info["lang"] = "python"
     elif (cwd / "package.json").is_file():
@@ -49,6 +125,10 @@ def detect_project(cwd: pathlib.Path) -> dict:
         if p.is_dir() and any(p.glob("*.md")):
             info["wiki_dir"] = str(p)
             break
+    info["loc"] = count_loc(cwd)
+    info["n_modules"] = count_top_modules(cwd)
+    info["page_range"], info["page_target"] = recommend_pages(info["loc"])
+    info["arch_docs"] = [str(p.relative_to(cwd)) for p in find_arch_docs(cwd)]
     return info
 
 
@@ -158,43 +238,157 @@ Chinese / mixed filename they actually live under.
 
 ### Bootstrap protocol (empty `docs/wiki/`, first time)
 
-1. Read `README*` + package manifest (`package.json` / `pyproject.toml` /
-   `go.mod` / `Cargo.toml` / `pom.xml`) + top-level source directory listing.
-   Infer the architecture in 1-2 internal paragraphs (don't write yet).
-2. Identify 5-15 significant items from the codebase. Classify each as
-   Entity / Concept / Operation / Comparison. Skip vendored code, generated
-   files, test fixtures, third-party libs.
-3. **Create the wiki tree** if missing: `docs/wiki/{{实体,概念,操作,对比}}/`.
-4. For each item, write **one** markdown file:
-   - filename: `<short-chinese-or-english-stem>.md`
-   - body starts with `# <Title>` (matching stem)
-   - 200-600 words, plain markdown only (no JSX, no HTML widgets, no
-     mermaid that won't render in vanilla Obsidian)
-   - **every load-bearing claim cites a source path inline**: `src/foo/bar.ts:123`
-     or just `src/foo/bar.ts`. No citation = delete the sentence.
-   - link related pages with `[[english-slug]]`
-   - **must make at least one non-obvious claim** — pages that paraphrase
-     comments / restate filenames are zero-value, skip them
-5. Write `docs/wiki/索引.md` (the index) listing every page once, grouped
-   by type, format:
-   ```
-   ## 实体（Entities）
-   - [[short-slug]] — **中文名**: one-line hook ≤ 80 chars
-   ## 概念（Concepts）
-   - [[other-slug]] — **中文名**: ...
-   ```
-6. Append to `docs/wiki/log.md` (create if absent):
-   ```
-   ## [{{date}}] bootstrap | initial wiki for {project_name}
-   N pages: {{count by type}}
-   ```
-7. Run `pwiki sync ./docs/wiki {project_name}` then `pwiki aliases {project_name}`.
-8. Tell the user: count of pages by type, one interesting cross-link, one
-   example query they can run via `pwiki query --rag "..."`.
+**Project scale signal**: this project measures ~**{loc:,} LOC** across
+**{n_modules} top-level modules**. **Recommended page count: {page_range}
+pages** (target {page_target}). Aim for the top of the range — denser is
+better than sparser. Stub-level pages (200-word paraphrases of filenames)
+are zero-value and must be skipped, not counted.
 
-**Bootstrap quality bar**: a stranger reading your output should be able
-to answer in under 10 minutes — what does this project do, what are its
-5 main pieces, how do they fit together. If a page fails this, delete it.
+**Architecture docs detected**: {arch_docs_list}
+Read these **in full**, not just headers — they are the project's own raw
+layer and your most important grounding. Cite them heavily by named
+section (e.g. `ARCHITECTURE.md (§1.2 能力清单)`).
+
+#### Step 1 — Required reads (in order, in full)
+
+| What | Why |
+|---|---|
+| `README*` at project root | high-level positioning |
+| Package manifest (`pyproject.toml` / `package.json` / `go.mod` / `Cargo.toml` / `pom.xml`) | dependencies + scripts + intent |
+| ARCHITECTURE / CONVENTIONS / DESIGN / PLAN / RFC*.md (root or `docs/`) — **full content** | the project's raw layer |
+| `src/` (or equivalent) top-level listing | module map |
+| **One representative file from each significant subdirectory** | confirm what each module actually does |
+
+If `ARCHITECTURE.md` contains a capability table or module list, **each row
+is a candidate Entity page**. Don't paraphrase the table — expand each row
+into a full page.
+
+#### Step 2 — Pick {page_target}±3 significant items
+
+Group into:
+- **实体 (entities)** — concrete packages / classes / services / capabilities (typically the largest bucket)
+- **概念 (concepts)** — algorithms / patterns / design principles
+- **操作 (operations)** — flows / pipelines / runbooks
+- **对比 (comparisons)** — this vs that, version 1 vs 2
+- **综合 (synthesis)** — *required* for projects ≥10K LOC; ties multiple pages into a thesis ("what we believe and why")
+
+Skip: vendored deps, generated code, test fixtures, trivial DTOs,
+single-line wrappers.
+
+#### Step 3 — Write each page with this MANDATORY structure
+
+**Every leaf .md must contain ALL of these sections.** No skipping. Stub
+pages without these sections are rejected output.
+
+```markdown
+# <Title>
+
+> Confidence: High|Medium|Low · Sources: `<file>` (`<section>`), `<file2>:<line>` · 关联：[[other-page]]
+
+## TL;DR
+<1-2 sentences: what is this, why does it exist, what does it do>
+
+## <Section 1 — Architecture / Mechanism / Lifecycle>
+<200-400 words. Plain markdown. The "core mechanism" of this entity/concept.>
+
+## <Section 2 — Data flow / Protocol / Algorithm / the most non-obvious aspect>
+<more depth. Pick whatever angle gives the highest information density.>
+
+## 源码锚点（Source Anchors）
+
+| 位置 | 作用 |
+|------|------|
+| `src/foo/bar.ts:123` | <one-line description> |
+| `src/baz.rs:45-67` | <description> |
+| `<at least 3-5 rows>` | ... |
+
+## 常见问题 / 边缘情况
+
+- **"X 时会发生什么？"** — <answer + code citation>
+- **"为啥不直接 Y？"** — <reasoning + tradeoff cited from arch doc>
+- <at least 2 Q&A pairs>
+
+## 与其他页的关联
+
+- [[some-slug]] — <one-line: how it connects>
+- [[another-slug]] — <how it connects>
+- <at least 2 cross-references>
+```
+
+**Target page length: 400-800 words** (longer is fine for hub Entity pages).
+200-word stubs are insufficient for a {loc:,} LOC project.
+
+#### Step 4 — Citation discipline (non-negotiable)
+
+Every load-bearing claim cites a source path, line number when feasible:
+
+- `src-tauri/src/lib.rs:142` — specific line
+- `src/app/bridge/wsClient.ts:56-89` — range
+- `ARCHITECTURE.md (§1.2 能力清单)` — named section in a raw doc
+
+**No citation = delete the sentence.** "This module probably does X" without
+opening the file is forbidden — either read the file and cite a line, or
+skip the claim entirely.
+
+Density target: **≥3 source-path citations per page** (more for Entity pages
+that map to actual modules).
+
+#### Step 5 — Quality bar (must pass before each page is included)
+
+A stranger reading the page must be able to:
+
+1. Explain what this thing does in 30 seconds (TL;DR)
+2. Find the actual implementation in 1 minute (源码锚点 table)
+3. Spot 1-2 non-obvious tradeoffs the team made (常见问题)
+4. Navigate to 2+ related pages without backtracking (关联)
+
+If a page fails any of the four, **rewrite or delete** before publishing.
+The goal is not "we wrote a page about this module"; it is "a smart new
+hire could land a PR after reading these {page_target} pages".
+
+#### Step 6 — Write `docs/wiki/索引.md` (the navigation hub)
+
+Every page listed once, grouped by type, format:
+
+```
+## 实体（Entities）
+- [[english-slug]] — **中文名**: one-line hook ≤ 80 chars
+- ...
+## 概念（Concepts）
+- ...
+## 还没写的（Roadmap pages）
+- 实体: `[[future-slug]]` — why it matters, deferred because <reason>
+```
+
+The roadmap section captures items you considered but didn't finish — it
+is the contract for the next ingest session.
+
+#### Step 7 — Append to `docs/wiki/log.md`
+
+```
+## [{{date}}] ingest | bootstrap for {project_name}
+- N pages written: M 实体 / X 概念 / Y 操作 / Z 对比 / W 综合
+- avg page length: K words (target: ≥400 for {loc:,} LOC project)
+- citation density: J source-paths per page (target: ≥3)
+- arch docs cited: list of ARCHITECTURE.md / etc references used
+- skipped: <list of considered-but-rejected items + brief reason>
+```
+
+#### Step 8 — Run pwiki commands
+
+```
+pwiki sync ./docs/wiki {project_name}
+pwiki aliases {project_name}
+pwiki canvas
+```
+
+#### Step 9 — Report to user
+
+One short message:
+- Page count by type
+- One sample 源码锚点 row from a strong page (proves you read source code with line numbers)
+- One [[wikilink]] cross-reference example showing the graph density
+- One `pwiki query --rag "..."` question they should try first
 
 ### Ingest protocol (a new source comes in)
 
@@ -263,10 +457,22 @@ hooks): https://github.com/zxs1633079383/pwiki/blob/main/docs/llm-wiki-pattern.m
 """
 
 
-def render_instructions(project_name: str, vault_path: str) -> str:
+def render_instructions(project: dict, vault_path: str) -> str:
+    arch_docs = project.get("arch_docs") or []
+    if arch_docs:
+        arch_docs_list = ", ".join(f"`{p}`" for p in arch_docs[:6])
+        if len(arch_docs) > 6:
+            arch_docs_list += f", … ({len(arch_docs)} total)"
+    else:
+        arch_docs_list = "_(none found — recommend adding ARCHITECTURE.md as you discover the structure)_"
     return INSTRUCTIONS_TEMPLATE.format(
-        project_name=project_name,
+        project_name=project["name"],
         vault_path=vault_path,
+        loc=project.get("loc", 0),
+        n_modules=project.get("n_modules", 0),
+        page_range=project.get("page_range", "5-8"),
+        page_target=project.get("page_target", 6),
+        arch_docs_list=arch_docs_list,
     )
 
 
@@ -404,6 +610,9 @@ def main() -> int:
     # 1. detect project
     proj = detect_project(cwd)
     print(f"  language    : {proj['lang']}  (git: {'yes' if proj['is_git'] else 'no'})")
+    print(f"  scale       : {proj['loc']:,} LOC across {proj['n_modules']} modules → recommend {proj['page_range']} wiki pages")
+    if proj.get("arch_docs"):
+        print(f"  arch docs   : {', '.join(proj['arch_docs'][:3])}{' …' if len(proj['arch_docs'])>3 else ''}")
     if proj["wiki_dir"]:
         print(f"  found wiki  : {proj['wiki_dir']}")
     else:
@@ -446,7 +655,7 @@ def main() -> int:
     # 4. write AI instructions
     written: list[tuple[str, str, str]] = []
     if do_write_tools:
-        body = render_instructions(proj["name"], vault_path)
+        body = render_instructions(proj, vault_path)
         for t in tools:
             if t["action"] in (None, "skip-exists"):
                 # skip-exists: update existing pwiki section (handled by write_or_inject append mode)
