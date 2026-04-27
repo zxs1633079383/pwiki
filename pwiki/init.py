@@ -90,62 +90,176 @@ def detect_ai_tools(cwd: pathlib.Path) -> list[dict]:
 # ─────────────────────────────────────── instruction template
 
 INSTRUCTIONS_TEMPLATE = """\
-## pwiki — Karpathy LLM Wiki, brew-install ready
+## pwiki — Karpathy LLM Wiki for this project
 
-This project uses [pwiki](https://github.com/zxs1633079383/pwiki) for
-LLM-readable knowledge management. When the user makes any of the
-following requests, run the corresponding command instead of writing
-custom code:
+This project uses [pwiki](https://github.com/zxs1633079383/pwiki), an
+implementation of [Andrej Karpathy's LLM Wiki pattern][gist] (April 2026).
+
+[gist]: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+
+> *"Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase."*
+
+You (the AI agent reading this file) are now the wiki's maintainer. Read
+the entire section below **once** at session start; thereafter you have
+the full LLM Wiki pattern in context and need not re-read anything else.
+
+### What an LLM Wiki is (compressed primer)
+
+Three layers, immutability gradient:
+
+| Layer | What | Mutability | Lives at |
+|---|---|---|---|
+| **Raw** | source articles, papers, code, transcripts | strictly immutable | the project's source tree itself |
+| **Wiki** | LLM-compiled markdown summaries / entity / concept / comparison / synthesis pages | mutable — you maintain | `docs/wiki/` |
+| **Schema** | structure, conventions, workflows | semi-mutable (human + LLM co-evolve) | this file you're reading + `docs/wiki/索引.md` + `docs/wiki/log.md` |
+
+**Compile, don't retrieve.** RAG re-discovers per query; LLM Wiki compiles
+once into persistent structured markdown so knowledge accumulates. They
+are complementary — once `docs/wiki/` has >100 pages, layer RAG on top
+(`pwiki query --rag` already does this).
+
+### Three core operations
+
+| Operation | When | What you do |
+|---|---|---|
+| **Ingest** | user adds a new source (paper / commit / decision / transcript) | read the source → write a Summary page → update / create related Entity / Concept / Comparison / Synthesis pages → revise `索引.md` → append a line to `log.md` (one ingest typically touches 5-15 pages) |
+| **Query** | user asks "find my notes on X" / "what did I write about Y" | search wiki pages, synthesize answer with `[[wikilink]]` citations; if the question is high-value, file the synthesized answer back as a permanent Synthesis page |
+| **Lint** | user says "lint the wiki" / weekly | scan for: contradictions, stale facts, orphan pages (no incoming links), missing cross-references, broken `[[wikilinks]]`, knowledge gaps. Self-heal: link orphans, mark stale, propose deletions |
+
+### Page types (Karpathy's taxonomy)
+
+| Type | Folder | Holds |
+|---|---|---|
+| Summary  | `docs/wiki/概要/` (optional) | one source → one page distilling its claims |
+| Entity   | `docs/wiki/实体/` | concrete things: packages, modules, classes, services, people, products |
+| Concept  | `docs/wiki/概念/` | algorithms, models, abstract patterns, design principles |
+| Operation| `docs/wiki/操作/` | flows, pipelines, runbooks, step-by-step how-tos |
+| Comparison| `docs/wiki/对比/` | tradeoff tables: this vs that, version A vs B |
+| Synthesis | `docs/wiki/综合/` | ties multiple of the above into a thesis: "what we believe and why" |
+
+Files connect through `[[english-slug]]` wikilinks. Slugs must be lowercase,
+URL-safe, hyphenated; `pwiki aliases` later auto-resolves them to whatever
+Chinese / mixed filename they actually live under.
+
+### User-trigger → action table (run pwiki, don't write custom code)
 
 | User intent (any of these phrasings) | Action |
 |---|---|
-| **"fill the wiki" / "帮我填 wiki" / "扫一下源码写 wiki" / "generate the wiki from my code"** — and especially when `docs/wiki/` exists but is empty/stub | **Multi-step** (see "Wiki bootstrap protocol" below) |
-| "sync wiki" / "同步 wiki" / "推 wiki 到 vault" / after editing `docs/wiki/` | `pwiki sync ./docs/wiki {project_name}` |
-| "解析 wikilink" / unresolved `[[slug]]` after sync | `pwiki aliases {project_name}` |
-| "看图谱" / "canvas" / "knowledge graph" | `pwiki canvas` (then open `Vault/canvas/all-repos.canvas` in Obsidian) |
-| "今天的早报" / "morning brief" / "今日复习" | `pwiki brief` |
-| "搜笔记" / "查 X" / "what did I write about Y" / "find my notes on Z" | `pwiki query --rag "<question>"` |
-| "本地启 web UI" / "看 vault 在浏览器" | `pwiki serve --open` |
+| **"fill the wiki" / "帮我填 wiki" / "扫一下源码写 wiki"** — empty `docs/wiki/` or first run | follow **Bootstrap protocol** below |
+| **"ingest <X>" / "把这篇 paper 整理进 wiki" / "把这次决策记下来"** | follow **Ingest protocol** below |
+| **"lint the wiki" / "wiki 体检" / "检查矛盾"** | follow **Lint protocol** below |
+| "sync" / "同步 wiki" / after editing `docs/wiki/` | `pwiki sync ./docs/wiki {project_name}` |
+| "解析 wikilink" / `[[slug]]` 没连上 | `pwiki aliases {project_name}` |
+| "看图谱" / "canvas" / "knowledge graph" | `pwiki canvas` (open `Vault/canvas/all-repos.canvas` in Obsidian) |
+| "今天的早报" / "morning brief" | `pwiki brief` |
+| "搜笔记" / "查 X" / "find my notes on Z" | `pwiki query --rag "<question>"` |
+| "本地启 web UI" | `pwiki serve --open` |
 | "周回顾" / "weekly evolution" | `pwiki evolution` |
 
+### Bootstrap protocol (empty `docs/wiki/`, first time)
+
+1. Read `README*` + package manifest (`package.json` / `pyproject.toml` /
+   `go.mod` / `Cargo.toml` / `pom.xml`) + top-level source directory listing.
+   Infer the architecture in 1-2 internal paragraphs (don't write yet).
+2. Identify 5-15 significant items from the codebase. Classify each as
+   Entity / Concept / Operation / Comparison. Skip vendored code, generated
+   files, test fixtures, third-party libs.
+3. **Create the wiki tree** if missing: `docs/wiki/{{实体,概念,操作,对比}}/`.
+4. For each item, write **one** markdown file:
+   - filename: `<short-chinese-or-english-stem>.md`
+   - body starts with `# <Title>` (matching stem)
+   - 200-600 words, plain markdown only (no JSX, no HTML widgets, no
+     mermaid that won't render in vanilla Obsidian)
+   - **every load-bearing claim cites a source path inline**: `src/foo/bar.ts:123`
+     or just `src/foo/bar.ts`. No citation = delete the sentence.
+   - link related pages with `[[english-slug]]`
+   - **must make at least one non-obvious claim** — pages that paraphrase
+     comments / restate filenames are zero-value, skip them
+5. Write `docs/wiki/索引.md` (the index) listing every page once, grouped
+   by type, format:
+   ```
+   ## 实体（Entities）
+   - [[short-slug]] — **中文名**: one-line hook ≤ 80 chars
+   ## 概念（Concepts）
+   - [[other-slug]] — **中文名**: ...
+   ```
+6. Append to `docs/wiki/log.md` (create if absent):
+   ```
+   ## [{{date}}] bootstrap | initial wiki for {project_name}
+   N pages: {{count by type}}
+   ```
+7. Run `pwiki sync ./docs/wiki {project_name}` then `pwiki aliases {project_name}`.
+8. Tell the user: count of pages by type, one interesting cross-link, one
+   example query they can run via `pwiki query --rag "..."`.
+
+**Bootstrap quality bar**: a stranger reading your output should be able
+to answer in under 10 minutes — what does this project do, what are its
+5 main pieces, how do they fit together. If a page fails this, delete it.
+
+### Ingest protocol (a new source comes in)
+
+1. Read the new source (paper / file / commit / transcript) end-to-end.
+2. Surface findings to the user briefly (3-5 bullets). Pause for steering.
+3. Decide where this source's content belongs:
+   - new Summary page (always — one source, one summary)
+   - existing pages to *update* (mark with edit comment "[ingest 2026-MM-DD]")
+   - new pages to *create* (Entity / Concept / Comparison / Synthesis)
+4. Write/edit those pages. Preserve existing wikilinks.
+5. Update `docs/wiki/索引.md` if you added pages.
+6. Append to `log.md`:
+   ```
+   ## [{{date}}] ingest | <source title>
+   - touched: list of page slugs
+   - new: list of new page slugs
+   ```
+7. Run `pwiki sync ./docs/wiki {project_name}` then `pwiki aliases {project_name}`.
+
+### Lint protocol (periodic / on demand)
+
+Scan `docs/wiki/` and report:
+- **Orphans** — pages with no incoming `[[wikilinks]]`. Fix: link from
+  `索引.md` or relevant pages, or delete if low-value.
+- **Stale** — pages whose `last_synced` is >90 days old AND source files
+  have changed since. Mark with `> stale: <reason>` near the top.
+- **Contradictions** — pages making opposing claims about the same entity.
+  Surface to user; do not auto-resolve.
+- **Broken wikilinks** — `[[slug]]` with no matching file or alias. Fix
+  by adding the missing page or removing the dead link.
+- **Citation gaps** — claims without source paths. Add citations or delete.
+
+After scanning, write a `docs/wiki/log.md` entry:
+```
+## [{{date}}] lint
+- orphans: N (fixed M)
+- stale: N
+- contradictions: N (surfaced for user review)
+- broken: N (fixed)
+```
+
+### Confidence (optional but recommended)
+
+For high-stakes pages, add a `confidence: high|medium|low` field to the
+frontmatter. Decay slowly for architecture decisions; fast for transient
+bugs / specific version numbers.
+
+### Project-specific
+
 **Vault path**: `{vault_path}`
-**Project name** (use as `<repo>` arg): `{project_name}`
+**Project name** (`<repo>` arg in CLI): `{project_name}`
 
-### Wiki bootstrap protocol (when the user asks "fill the wiki")
+### Install / Re-init
 
-If `docs/wiki/` exists but most leaf `.md` files are empty (only frontmatter
-or only category-stub `_llm-prompt.md`), follow these steps without further
-prompting:
+```bash
+pip install -U "pwiki-cli[rag,serve]"
+pwiki init -y --vault "{vault_path}"
+```
 
-1. **Read** `docs/wiki/_llm-prompt.md` for the project-specific instructions.
-2. **Read** the project's README, top-level source directory listing, and
-   primary package metadata (`package.json` / `pyproject.toml` / `go.mod` /
-   `Cargo.toml` / `pom.xml`). Infer the architecture in 1-2 paragraphs.
-3. **Pick 5-15 significant modules / classes / flows** from the source.
-   Group them as 实体 (entities) / 概念 (concepts) / 操作 (operations) /
-   对比 (comparisons).
-4. **Write one markdown file per item** under
-   `docs/wiki/{{实体|概念|操作|对比}}/<short-chinese-name>.md`. Each file:
-   - starts with `# <Title>` matching the file stem
-   - 200-600 words, plain markdown, no JSX/HTML widgets
-   - cite specific source paths inline (e.g. ``src/foo/bar.ts:123``) for
-     every load-bearing claim
-   - link related pages with `[[english-slug]]` (the slug must be a stable,
-     URL-safe lowercase token; `pwiki aliases` will resolve it later)
-5. **Write `docs/wiki/索引.md`** listing every page once, grouped by
-   category, in the format `- [[english-slug]] — **中文名**: one-line hook`.
-6. **Run** `pwiki sync ./docs/wiki {project_name}` then
-   `pwiki aliases {project_name}` to push everything into the Vault.
-7. **Tell the user** how many files were generated, the canvas command, and
-   one suggested next question they could ask the wiki via `pwiki query --rag`.
+Re-running `pwiki init` is safe — the section between
+`<!-- pwiki:begin -->` and `<!-- pwiki:end -->` updates in place; your
+own content elsewhere in this file is preserved verbatim.
 
-**Quality bar**: a stranger reading the wiki should be able to answer
-"what does this project do, what are its 5 main pieces, and how do they
-fit together" in under 10 minutes. Pages that just paraphrase comments
-or restate filenames are zero-value — skip them.
-
-Install (if missing): `pip install -U "pwiki-cli[rag,serve]"`
-Full docs: https://github.com/zxs1633079383/pwiki
+Full docs and v2 extensions (confidence, supersession, hybrid search,
+hooks): https://github.com/zxs1633079383/pwiki/blob/main/docs/llm-wiki-pattern.md
 """
 
 
@@ -156,90 +270,10 @@ def render_instructions(project_name: str, vault_path: str) -> str:
     )
 
 
-WIKI_PROMPT_TEMPLATE = """\
-# LLM prompt — fill this `docs/wiki/` for project `{project_name}`
+# 0.3.0: _llm-prompt.md is no longer generated — the AI gets the full
+# LLM Wiki pattern directly from CLAUDE.md / AGENTS.md / .cursor/rules
+# via the marker section. No separate file to "go read first".
 
-You are an AI agent (Claude / Cursor / Codex / Gemini / etc.) running in
-this project's working directory. The user has just initialized pwiki and
-is asking you to populate `docs/wiki/` from the source code.
-
-> *"Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase."*
-> — Andrej Karpathy
-
-## What to do (in order — do not skip steps)
-
-**Step 1. Read project context.**
-- `README.md` (or `README.*` if non-md) at the project root
-- The package manifest: `package.json` / `pyproject.toml` / `go.mod` /
-  `Cargo.toml` / `pom.xml` — whichever exists
-- The top-level source directory listing (`src/`, `app/`, `lib/`, `cmd/`,
-  `internal/` — whichever exists). Don't read every file; just understand the
-  layout.
-
-**Step 2. Pick 5-15 significant items.** Group them as:
-- **实体 (entities)** — concrete packages / modules / classes / services
-- **概念 (concepts)** — algorithms / models / abstract patterns
-- **操作 (operations)** — flows / pipelines / step-by-step how-tos
-- **对比 (comparisons)** — this project's choice vs the alternatives
-
-Skip trivial items (test fixtures, generated files, third-party vendor dirs).
-
-**Step 3. Write one markdown file per item** at
-`docs/wiki/{{实体|概念|操作|对比}}/<short-name>.md`. Each file:
-
-- Starts with `# <Title>` matching the file stem.
-- 200-600 words. Plain markdown only — no JSX, HTML widgets, mermaid that
-  doesn't render in plain Obsidian.
-- Cite source paths inline for every load-bearing claim:
-  `<src/foo/bar.ts:123>` or just `src/foo/bar.ts`.
-- Link related pages using `[[english-slug]]` (the slug must be lowercase,
-  URL-safe, hyphenated; pwiki's `aliases` command resolves these to the
-  actual filenames you wrote).
-
-**Step 4. Write `docs/wiki/索引.md`** that lists every page once, grouped by
-category, in this exact format (one line per page):
-
-```markdown
-## 概念（Concepts）
-- [[short-slug]] — **中文名**: one-line hook ≤ 80 chars
-- ...
-
-## 实体（Entities）
-- [[other-slug]] — **中文名**: ...
-```
-
-**Step 5. Run pwiki commands** to push the wiki into the user's Vault:
-
-```bash
-pwiki sync ./docs/wiki {project_name}
-pwiki aliases {project_name}
-pwiki canvas
-```
-
-**Step 6. Tell the user** in one short message:
-- How many pages you wrote (e.g. "11 pages: 4 实体 / 3 概念 / 3 操作 / 1 对比")
-- One sample interesting cross-link (e.g. "`[[auth-flow]]` references `[[token-store]]`")
-- One example query they can run: ``pwiki query --rag "how does X work"``
-
-## Quality bar (skip pages that fail this)
-
-A stranger reading your output should be able to answer in under 10 minutes:
-1. What does this project do?
-2. What are its 5 main pieces?
-3. How do those pieces fit together?
-
-If a page just paraphrases code comments or restates filenames, skip it.
-Each page should make a non-obvious claim and back it with code citation.
-
-## Frontmatter
-
-`pwiki sync` adds YAML frontmatter (source_repo / last_synced /
-ebbinghaus_stage etc.) automatically — you write only the body content.
-"""
-
-
-def render_wiki_prompt(project_name: str) -> str:
-    return WIKI_PROMPT_TEMPLATE.format(project_name=project_name)
 
 
 # ─────────────────────────────────────── writing
@@ -271,28 +305,44 @@ def write_or_inject(target: pathlib.Path, body: str, mode: str) -> str:
 
 
 def bootstrap_wiki(cwd: pathlib.Path, project_name: str) -> pathlib.Path:
-    """Create docs/wiki/ scaffold with category dirs and an LLM prompt."""
+    """Create a minimal docs/wiki/ tree (category dirs + index.md + log.md).
+
+    No `_llm-prompt.md` — the AI gets the full LLM Wiki protocol from
+    CLAUDE.md / AGENTS.md / .cursor/rules/pwiki.md via the marker section.
+    """
     wiki = cwd / "docs" / "wiki"
     wiki.mkdir(parents=True, exist_ok=True)
-    for sub in ("概念", "实体", "操作", "对比"):
+    for sub in ("实体", "概念", "操作", "对比"):
         (wiki / sub).mkdir(exist_ok=True)
         gitkeep = wiki / sub / ".gitkeep"
         if not gitkeep.is_file():
             gitkeep.write_text("", encoding="utf-8")
+
     index = wiki / "索引.md"
     if not index.is_file():
         index.write_text(
             f"# {project_name} — Wiki Index\n\n"
-            f"> 由 `pwiki init` 生成。让你的 LLM 读 `_llm-prompt.md` 然后填充每页。\n\n"
-            f"## 概念（Concepts）\n_（空，等待 LLM 填充）_\n\n"
-            f"## 实体（Entities）\n_（空，等待 LLM 填充）_\n\n"
-            f"## 操作（Operations）\n_（空，等待 LLM 填充）_\n\n"
-            f"## 对比（Comparisons）\n_（空，等待 LLM 填充）_\n",
+            f"> Auto-bootstrapped by `pwiki init`. Tell your AI agent\n"
+            f"> \"fill the wiki\" / \"帮我填 wiki\" — it has the full\n"
+            f"> LLM Wiki protocol in CLAUDE.md / AGENTS.md / .cursor/rules.\n\n"
+            f"## 实体（Entities）\n_(empty — agent fills on first ingest)_\n\n"
+            f"## 概念（Concepts）\n_(empty)_\n\n"
+            f"## 操作（Operations）\n_(empty)_\n\n"
+            f"## 对比（Comparisons）\n_(empty)_\n",
             encoding="utf-8",
         )
-    prompt = wiki / "_llm-prompt.md"
-    if not prompt.is_file():
-        prompt.write_text(render_wiki_prompt(project_name), encoding="utf-8")
+
+    log = wiki / "log.md"
+    if not log.is_file():
+        log.write_text(
+            f"# {project_name} — Wiki Log\n\n"
+            f"> Append-only chronological record. Each entry uses parseable\n"
+            f"> prefix: `## [YYYY-MM-DD] <op> | <title>` where op is one of\n"
+            f"> ingest / lint / bootstrap / decision.\n\n"
+            f"## [{dt.date.today().isoformat()}] bootstrap | {project_name} wiki initialized\n"
+            f"- empty scaffold; awaiting first ingest from the AI agent\n",
+            encoding="utf-8",
+        )
     return wiki
 
 
