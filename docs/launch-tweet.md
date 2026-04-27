@@ -129,7 +129,7 @@ Repo + Karpathy's original gist in the first reply ↓
 Repo: github.com/zxs1633079383/pwiki
 Karpathy's original gist: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 
-pip install pwiki && pwiki --help
+pip install pwiki-cli && pwiki --help
 ```
 
 ---

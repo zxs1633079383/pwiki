@@ -5,7 +5,16 @@
 ## ✅ ① GitHub（已完成）
 
 仓库：https://github.com/zxs1633079383/pwiki
-状态：public · main 分支 · 23 个 tracked file · MIT · GitHub Actions 已配置
+状态：public · main 分支 · 36+ tracked file · MIT · GitHub Actions 已配置
+
+> **包名说明**：PyPI 上 `pwiki` 已被一个 MediaWiki 客户端库占用（Fastily/pwiki, v1.3.1），所以本项目在 PyPI 发布为 **`pwiki-cli`**。
+> 影响范围（**不变**）：
+> - GitHub 仓库名仍是 `pwiki`
+> - CLI 命令仍是 `pwiki <subcommand>`
+> - Python import 仍是 `import pwiki`
+> - 所有 docs / launch-tweet / commit message 中的项目名仍是 pwiki
+> 影响范围（**变化**）：
+> - 安装命令：`pip install pwiki-cli`
 
 ```bash
 # 后续推送变更
@@ -54,11 +63,11 @@ bash scripts/release.sh
 ### 验证发布成功
 
 ```bash
-pip install pwiki   # 不带 -e 不带路径，直接从 PyPI 装
-pwiki --version     # → pwiki 0.1.0
+pip install pwiki-cli   # 注意：PyPI 包名 `pwiki` 已被占用，本仓发布为 `pwiki-cli`
+pwiki --version         # CLI 命令仍是 pwiki，import 路径仍是 import pwiki
 ```
 
-PyPI 主页：https://pypi.org/project/pwiki/
+PyPI 主页：https://pypi.org/project/pwiki-cli/
 
 ### 后续版本更新
 

@@ -26,7 +26,7 @@ It's the unopinionated middleware between **(your code)** and **(your second bra
 ## Install
 
 ```bash
-pip install pwiki         # PyPI (recommended)
+pip install pwiki-cli     # PyPI (the `pwiki` name was taken; CLI command is still `pwiki`)
 # or, from source:
 git clone https://github.com/zxs1633079383/pwiki && cd pwiki && pip install -e .
 ```
@@ -56,7 +56,7 @@ pwiki evolution
 pwiki query "blast radius"
 
 # 7. Search semantically — RAG mode (multilingual, fully local)
-pip install 'pwiki[rag]'         # adds fastembed (~120MB ONNX model on first use)
+pip install 'pwiki-cli[rag]'         # adds fastembed (~120MB ONNX model on first use)
 pwiki query --rag --rebuild "warmup"      # build index once
 pwiki query --rag "how do I detect cross-repo impact"
 pwiki query --rag "怎么判断改一个接口会炸到下游哪些服务"   # mixed-language works
@@ -64,11 +64,11 @@ pwiki query --rag "怎么判断改一个接口会炸到下游哪些服务"   # m
 
 > **Python 3.14 note:** the `[rag]` extra requires `onnxruntime`, which currently
 > ships wheels for Python 3.10–3.13 only. If you're on 3.14, run pwiki in a
-> 3.13 venv: `python3.13 -m venv ~/.pwiki-venv && ~/.pwiki-venv/bin/pip install 'pwiki[rag]'`.
+> 3.13 venv: `python3.13 -m venv ~/.pwiki-venv && ~/.pwiki-venv/bin/pip install 'pwiki-cli[rag]'`.
 
 ```bash
 # 8. Browse the Vault in a local web UI (with D3 Canvas viewer)
-pip install 'pwiki[serve]'
+pip install 'pwiki-cli[serve]'
 pwiki serve --port 8080 --open
 # → http://127.0.0.1:8080/
 #   home  /         repos list + recent dailies + opportunities

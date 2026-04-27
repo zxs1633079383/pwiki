@@ -103,7 +103,7 @@ MIT 协议，能跑，就这样。
 仓: github.com/zxs1633079383/pwiki
 Karpathy 原 Gist: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 
-pip install -e . （PyPI 发布中）然后 pwiki --help
+pip install pwiki-cli  # 注意 PyPI 名是 pwiki-cli（pwiki 被占用了），CLI 命令仍是 pwiki
 ```
 
 ---

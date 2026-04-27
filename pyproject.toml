@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pwiki"
+name = "pwiki-cli"
 version = "0.1.0"
 description = "Karpathy's LLM Wiki, brew-install ready. Sync, query, and graph any repo's wiki into your Obsidian Vault."
 readme = "README.md"
